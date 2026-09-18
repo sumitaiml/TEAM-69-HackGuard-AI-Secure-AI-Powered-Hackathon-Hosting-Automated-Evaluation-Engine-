@@ -34,4 +34,19 @@ class Settings:
     DOCKER_CPU_CAP: float = float(os.getenv("DOCKER_CPU_CAP", 1.0))
     DOCKER_TIMEOUT_SECONDS: int = int(os.getenv("DOCKER_TIMEOUT_SECONDS", 60))
 
+    # 7. CORS
+    # Comma-separated list of allowed origins for the frontend SPA.
+    CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "http://localhost:5173")
+
+    # 8. Upload limits (PRD: video 3-5 min, max 50MB)
+    MAX_ZIP_SIZE_MB: int = int(os.getenv("MAX_ZIP_SIZE_MB", 100))
+    MAX_PPT_SIZE_MB: int = int(os.getenv("MAX_PPT_SIZE_MB", 25))
+    MAX_VIDEO_SIZE_MB: int = int(os.getenv("MAX_VIDEO_SIZE_MB", 50))
+    VIDEO_MIN_DURATION_SECONDS: int = int(os.getenv("VIDEO_MIN_DURATION_SECONDS", 180))
+    VIDEO_MAX_DURATION_SECONDS: int = int(os.getenv("VIDEO_MAX_DURATION_SECONDS", 300))
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+
 settings = Settings()

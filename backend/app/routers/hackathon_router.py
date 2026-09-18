@@ -4,7 +4,7 @@ from typing import List
 
 from app import models, schemas
 from app.database import get_db
-from app.auth import get_current_user
+from app.auth import require_role
 
 router = APIRouter(prefix="/api/hackathons", tags=["Hackathons"])
 
@@ -13,10 +13,7 @@ def list_hackathons(db: Session = Depends(get_db)):
     return db.query(models.Hackathon).filter(models.Hackathon.is_active == True).all()
 
 @router.post("/create", response_model=schemas.HackathonOut, status_code=status.HTTP_201_CREATED)
-def create_hackathon(hack_in: schemas.HackathonCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if current_user.role not in ["organizer", "admin"]:
-        raise HTTPException(status_code=403, detail="Only organizers can create hackathons")
-
+def create_hackathon(hack_in: schemas.HackathonCreate, current_user: models.User = Depends(require_role(["organizer", "admin"])), db: Session = Depends(get_db)):
     rubric_dict = hack_in.rubric_weights.model_dump() if hack_in.rubric_weights else {
         "technical_complexity": 30.0,
         "innovation": 20.0,
@@ -38,10 +35,7 @@ def create_hackathon(hack_in: schemas.HackathonCreate, current_user: models.User
     return new_hack
 
 @router.put("/{hackathon_id}/rubric", response_model=schemas.HackathonOut)
-def update_rubric(hackathon_id: str, rubric_in: schemas.RubricConfig, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if current_user.role not in ["organizer", "admin"]:
-        raise HTTPException(status_code=403, detail="Only organizers can modify evaluation rubrics")
-
+def update_rubric(hackathon_id: str, rubric_in: schemas.RubricConfig, current_user: models.User = Depends(require_role(["organizer", "admin"])), db: Session = Depends(get_db)):
     hackathon = db.query(models.Hackathon).filter(models.Hackathon.id == hackathon_id).first()
     if not hackathon:
         raise HTTPException(status_code=404, detail="Hackathon not found")

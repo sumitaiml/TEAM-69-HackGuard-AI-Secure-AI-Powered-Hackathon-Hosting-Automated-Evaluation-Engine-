@@ -72,6 +72,7 @@ class Submission(Base):
     tech_stack = Column(String, nullable=True)
     live_url = Column(String, nullable=True)
     status = Column(String, default="submitted") # submitted, evaluating, completed, failed
+    upload_metadata_json = Column(JSON, nullable=True)  # original filenames/sizes/video duration
     submitted_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     team = relationship("Team", back_populates="submissions")

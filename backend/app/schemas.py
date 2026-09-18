@@ -97,6 +97,7 @@ class SubmissionOut(BaseModel):
     tech_stack: Optional[str]
     live_url: Optional[str]
     status: str
+    upload_metadata_json: Optional[Dict[str, Any]] = None
     submitted_at: datetime
 
 # --- Evaluation Schemas ---

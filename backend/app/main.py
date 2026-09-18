@@ -15,10 +15,13 @@ app = FastAPI(
 )
 
 # CORS Middleware
+# Auth is bearer-token (Authorization header), not cookie-based, so credentials
+# are never needed cross-origin - allow_credentials stays off so the origin
+# list below can be explicit without hitting the wildcard+credentials conflict.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=settings.cors_origins_list,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

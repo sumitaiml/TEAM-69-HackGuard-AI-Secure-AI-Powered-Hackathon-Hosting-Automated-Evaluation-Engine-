@@ -101,3 +101,35 @@ def test_organizer_hackathon_creation_and_rubric(client):
         "presentation": 0.0
     }, headers={"Authorization": f"Bearer {token_org}"})
     assert bad_rubric_res.status_code == 400
+
+
+def test_non_organizer_cannot_create_hackathon_or_edit_rubric(client):
+    # A plain participant must still be blocked (require_role dependency, not
+    # the old inline role check, now guards these routes)
+    part_res = client.post("/api/auth/register", json={
+        "email": "not_an_organizer@hackguard.ai",
+        "password": "password123",
+        "full_name": "Random Participant",
+        "role": "participant"
+    })
+    part_token = part_res.json()["access_token"]
+    part_headers = {"Authorization": f"Bearer {part_token}"}
+
+    create_res = client.post("/api/hackathons/create", json={"title": "Should Fail"}, headers=part_headers)
+    assert create_res.status_code == 403
+
+    org_res = client.post("/api/auth/register", json={
+        "email": "real_organizer@hackguard.ai",
+        "password": "password123",
+        "full_name": "Real Organizer",
+        "role": "organizer"
+    })
+    org_headers = {"Authorization": f"Bearer {org_res.json()['access_token']}"}
+    hack_res = client.post("/api/hackathons/create", json={"title": "Real Event"}, headers=org_headers)
+    hack_id = hack_res.json()["id"]
+
+    rubric_res = client.put(f"/api/hackathons/{hack_id}/rubric", json={
+        "technical_complexity": 30.0, "innovation": 20.0, "ui_ux": 15.0,
+        "business_impact": 15.0, "documentation": 10.0, "presentation": 10.0
+    }, headers=part_headers)
+    assert rubric_res.status_code == 403

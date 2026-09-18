@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from app import models, schemas
 from app.database import get_db
-from app.auth import get_current_user
+from app.auth import get_current_user, require_role
 from app.services.static_analysis import run_static_code_analysis
 from app.services.plagiarism_engine import run_plagiarism_check
 from app.services.sandbox_runner import execute_in_docker_sandbox
@@ -89,11 +89,8 @@ def override_judge_score(
     report_id: str,
     override_data: OverrideRequest,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
+    current_user: models.User = Depends(require_role(["judge", "organizer", "admin"]))
 ):
-    if current_user.role not in ["judge", "organizer", "admin"]:
-        raise HTTPException(status_code=403, detail="Only judges and organizers can override evaluation scores")
-
     if not override_data.justification_notes or len(override_data.justification_notes.strip()) < 5:
         raise HTTPException(status_code=400, detail="Mandatory justification notes required for score overrides")
 
