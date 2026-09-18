@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { MetricCard } from './MetricCard';
 import { FileText, ShieldCheck, Sliders, CheckCircle, Video } from 'lucide-react';
 
-import { HackathonItem } from '../App';
+import type { HackathonItem } from '../App';
 
 interface JudgeDashboardProps {
   activeTab: string;

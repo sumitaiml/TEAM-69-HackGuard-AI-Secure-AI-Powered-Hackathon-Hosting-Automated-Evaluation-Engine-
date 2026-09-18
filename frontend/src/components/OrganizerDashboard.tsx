@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { MetricCard } from './MetricCard';
 import { Users, ShieldAlert, Sliders, Trophy, Download, Send, Plus, Calendar } from 'lucide-react';
-import { HackathonItem } from '../App';
+import type { HackathonItem } from '../App';
 
 interface OrganizerDashboardProps {
   activeTab: string;

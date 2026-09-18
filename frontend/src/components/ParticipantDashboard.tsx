@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { MetricCard } from './MetricCard';
-import { GitBranch, ShieldCheck, Trophy, Rocket, Upload, Users, FileText, UserPlus, ExternalLink, Code } from 'lucide-react';
+import { GitBranch, ShieldCheck, Trophy, Rocket, Upload, UserPlus } from 'lucide-react';
 
-import { HackathonItem } from '../App';
+import type { HackathonItem } from '../App';
 
 interface ParticipantDashboardProps {
   activeTab: string;
