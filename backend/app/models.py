@@ -1,6 +1,7 @@
 import datetime
 import uuid
-from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, ForeignKey, Text, JSON
+from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, ForeignKey, Text, JSON, Index
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -93,3 +94,20 @@ class EvaluationReport(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     submission = relationship("Submission", back_populates="reports")
+
+class PlagiarismFingerprint(Base):
+    __tablename__ = "plagiarism_fingerprints"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    submission_id = Column(String, ForeignKey("submissions.id"), nullable=False, unique=True)
+    hackathon_id = Column(String, ForeignKey("hackathons.id"), nullable=False)
+    # MinHash signature (128 hash values) used for fast candidate shortlisting
+    # via a Postgres GIN index on array overlap (&&), avoiding an O(N^2)
+    # pairwise comparison across every submission in the hackathon.
+    minhash_signature = Column(ARRAY(Integer), nullable=False)
+    file_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_plagiarism_fingerprints_minhash_gin", "minhash_signature", postgresql_using="gin"),
+    )

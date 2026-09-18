@@ -14,3 +14,12 @@ psycopg2-binary>=2.9.9
 alembic>=1.13.0
 celery>=5.3.6
 redis>=5.0.1
+semgrep>=1.45.0
+pylint>=3.0.0
+# tree_sitter_languages 1.10.2 (latest release) was never updated for the
+# tree-sitter 0.22+ Language() constructor signature change - pinning the
+# last compatible tree-sitter version is required or get_parser() raises
+# "TypeError: __init__() takes exactly 1 argument (2 given)".
+tree-sitter==0.21.3
+tree_sitter_languages>=1.10.2
+datasketch>=1.6.4

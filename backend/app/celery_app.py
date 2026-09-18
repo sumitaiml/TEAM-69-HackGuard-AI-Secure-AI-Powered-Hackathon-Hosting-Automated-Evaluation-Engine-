@@ -6,6 +6,11 @@ celery_app = Celery(
     "hackguard",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
+    # The worker process is started as `celery -A app.celery_app worker`,
+    # which only imports this module - without `include`, task modules
+    # decorated with @celery_app.task elsewhere are never imported there,
+    # so the worker doesn't know they exist ("KeyError: <task name>").
+    include=["app.tasks.analysis_tasks"],
 )
 
 celery_app.conf.update(

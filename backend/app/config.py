@@ -52,6 +52,11 @@ class Settings:
     # used for tests; real dev/prod always goes through the real worker.
     CELERY_TASK_ALWAYS_EAGER: bool = os.getenv("CELERY_TASK_ALWAYS_EAGER", "false").lower() == "true"
 
+    # 10. Shared workspace for extracted submission source (and, from Phase 5,
+    # sandbox execution) - the api and worker containers mount the same
+    # named Docker volume here so work done by one is visible to the other.
+    WORKSPACE_ROOT: str = os.getenv("WORKSPACE_ROOT", "./workspace")
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]

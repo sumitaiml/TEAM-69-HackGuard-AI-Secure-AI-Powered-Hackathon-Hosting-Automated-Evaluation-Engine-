@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from app import models, schemas
 from app.database import get_db
 from app.auth import get_current_user, require_role
+from app.services.source_fetch import extract_submission_source
 from app.services.static_analysis import run_static_code_analysis
 from app.services.plagiarism_engine import run_plagiarism_check
 from app.services.sandbox_runner import execute_in_docker_sandbox
@@ -31,13 +32,13 @@ def trigger_full_evaluation(submission_id: str, db: Session = Depends(get_db), c
     hackathon = db.query(models.Hackathon).filter(models.Hackathon.id == sub.hackathon_id).first()
     rubric_weights = hackathon.rubric_weights_json if hackathon and hackathon.rubric_weights_json else None
 
+    source_dir = extract_submission_source(sub)
+
     # 1. Static Analysis
-    static_report = run_static_code_analysis(code_content=sub.readme_text or "", tech_stack=sub.tech_stack or "")
+    static_report = run_static_code_analysis(source_dir)
 
     # 2. Plagiarism Check
-    all_subs = db.query(models.Submission).filter(models.Submission.hackathon_id == sub.hackathon_id).all()
-    subs_payload = [{"id": s.id, "team_id": s.team_id, "code": s.readme_text or ""} for s in all_subs]
-    plagiarism_report = run_plagiarism_check(target_submission_id=sub.id, current_code=sub.readme_text or "", all_submissions=subs_payload)
+    plagiarism_report = run_plagiarism_check(db, sub, source_dir)
 
     # 3. Docker Sandbox Execution
     sandbox_report = execute_in_docker_sandbox(submission_id=sub.id, github_url=sub.github_url or "", zip_path=sub.zip_path or "")

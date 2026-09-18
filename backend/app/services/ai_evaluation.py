@@ -61,7 +61,10 @@ def evaluate_project_with_ai(
         }
 
     # Dynamic scoring heuristics based on analyzed outputs
-    tech_score = float(static_report.get("code_quality_score", 85.0)) if static_report else 85.0
+    # (code_quality_score is None when there was no source to analyze - e.g.
+    # a submission with only a README - so fall back rather than crash)
+    _quality = static_report.get("code_quality_score") if static_report else None
+    tech_score = float(_quality) if _quality is not None else 85.0
     innov_score = 88.0
     ui_score = 90.0
     impact_score = 86.0

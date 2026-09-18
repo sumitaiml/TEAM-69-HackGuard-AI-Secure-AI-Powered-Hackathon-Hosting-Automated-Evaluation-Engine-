@@ -1,66 +1,264 @@
-import pytest
+import io
+import zipfile
 
-def test_phase3_analysis_and_sandbox(client):
-    # 1. Register Participant & Create Team
+from app.celery_app import celery_app
+
+# MinHash similarity has real statistical variance on tiny inputs (few
+# shingles to sample from) - these fixtures are deliberately long enough
+# (~40 lines) to give a stable, representative estimate, matching the size
+# of a real (if small) submission rather than a toy one-liner.
+EVAL_SNIPPET_A = """
+def process_user_input(raw):
+    result = eval(raw)
+    return result
+
+def helper_one(x, y):
+    total = x + y
+    return total * 2
+
+def helper_two(items):
+    cleaned = []
+    for item in items:
+        if item is not None:
+            cleaned.append(item)
+    return cleaned
+
+def helper_three(data):
+    counts = {}
+    for key in data:
+        if key in counts:
+            counts[key] += 1
+        else:
+            counts[key] = 1
+    return counts
+
+class RequestHandler:
+    def __init__(self, config):
+        self.config = config
+        self.cache = {}
+
+    def handle(self, payload):
+        parsed = process_user_input(payload)
+        combined = helper_one(len(str(parsed)), 10)
+        return {"result": parsed, "score": combined}
+
+    def reset(self):
+        self.cache = {}
+"""
+
+# Near-duplicate of EVAL_SNIPPET_A: a handful of identifiers renamed
+# (simulating copy-paste-then-rename plagiarism), structure unchanged -
+# exactly the case superficial text diffing misses but AST tokenization
+# should still flag as near-identical.
+EVAL_SNIPPET_A_CLONE = """
+def process_user_input(raw):
+    outcome = eval(raw)
+    return outcome
+
+def helper_one(x, y):
+    total = x + y
+    return total * 2
+
+def helper_two(items):
+    filtered = []
+    for item in items:
+        if item is not None:
+            filtered.append(item)
+    return filtered
+
+def helper_three(data):
+    tally = {}
+    for key in data:
+        if key in tally:
+            tally[key] += 1
+        else:
+            tally[key] = 1
+    return tally
+
+class RequestHandler:
+    def __init__(self, settings):
+        self.settings = settings
+        self.cache = {}
+
+    def handle(self, payload):
+        parsed = process_user_input(payload)
+        combined = helper_one(len(str(parsed)), 10)
+        return {"result": parsed, "score": combined}
+
+    def reset(self):
+        self.cache = {}
+"""
+
+CLEAN_SNIPPET = """
+def add_numbers(a, b):
+    return a + b
+
+def multiply_numbers(a, b):
+    return a * b
+
+class Calculator:
+    def __init__(self):
+        self.history = []
+
+    def compute(self, op, a, b):
+        if op == "add":
+            value = add_numbers(a, b)
+        else:
+            value = multiply_numbers(a, b)
+        self.history.append(value)
+        return value
+"""
+
+
+def _zip_bytes(files: dict) -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        for name, content in files.items():
+            zf.writestr(name, content)
+    return buf.getvalue()
+
+
+def _register_participant_with_team(client, email, team_name):
     user_res = client.post("/api/auth/register", json={
-        "email": "phase3@hackguard.ai",
+        "email": email,
         "password": "password123",
         "full_name": "Phase3 Tester",
         "role": "participant"
     })
     token = user_res.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
+    team_res = client.post("/api/teams/create", json={"name": team_name}, headers=headers)
+    return headers, team_res.json()["id"]
 
-    team_res = client.post("/api/teams/create", json={"name": "SecurityTeam"}, headers=headers)
-    team_id = team_res.json()["id"]
 
-    # 2. Register Organizer & Create Hackathon
+def _create_hackathon(client, email):
     org_res = client.post("/api/auth/register", json={
-        "email": "org_phase3@hackguard.ai",
+        "email": email,
         "password": "password123",
         "full_name": "Org Phase3",
         "role": "organizer"
     })
-    org_token = org_res.json()["access_token"]
-    org_headers = {"Authorization": f"Bearer {org_token}"}
-
+    org_headers = {"Authorization": f"Bearer {org_res.json()['access_token']}"}
     hack_res = client.post("/api/hackathons/create", json={"title": "CyberSec Challenge"}, headers=org_headers)
-    assert hack_res.status_code == 201
-    hack_id = hack_res.json()["id"]
+    return hack_res.json()["id"]
 
-    # 3. Submit Project
-    sub_res = client.post(
+
+def _submit_zip(client, headers, hack_id, team_id, files: dict):
+    zip_file = ("project.zip", io.BytesIO(_zip_bytes(files)), "application/zip")
+    res = client.post(
         "/api/submissions/upload",
-        data={
-            "hackathon_id": hack_id,
-            "team_id": team_id,
-            "github_url": "https://github.com/securityteam/hackguard",
-            "readme_text": "# HackGuard App\ndef eval(user_input): pass"
-        },
+        data={"hackathon_id": hack_id, "team_id": team_id},
+        files={"zip_file": zip_file},
         headers=headers
     )
-    assert sub_res.status_code == 201
-    sub_id = sub_res.json()["id"]
+    assert res.status_code == 201
+    return res.json()["id"]
 
-    # 4. Test Static Analysis Endpoint
+
+def _poll_task(client, headers, task_id):
+    # CELERY_TASK_ALWAYS_EAGER is on in tests, so .delay() already ran the
+    # task synchronously by the time the endpoint returned - one GET is
+    # enough to see the final SUCCESS/FAILURE state, no real polling loop.
+    res = client.get(f"/api/tasks/{task_id}", headers=headers)
+    assert res.status_code == 200
+    return res.json()
+
+
+def test_static_analysis_flags_real_eval_usage(client):
+    headers, team_id = _register_participant_with_team(client, "phase3@hackguard.ai", "SecurityTeam")
+    hack_id = _create_hackathon(client, "org_phase3@hackguard.ai")
+    sub_id = _submit_zip(client, headers, hack_id, team_id, {"main.py": EVAL_SNIPPET_A})
+
     static_res = client.post(f"/api/analysis/run-static/{sub_id}", headers=headers)
-    assert static_res.status_code == 200
-    static_data = static_res.json()
-    assert "code_quality_score" in static_data
-    assert "tools_executed" in static_data
-    assert len(static_data["security_vulnerabilities"]) >= 1  # Should flag eval()
+    assert static_res.status_code == 202
+    task_info = _poll_task(client, headers, static_res.json()["task_id"])
+    assert task_info["status"] == "SUCCESS"
 
-    # 5. Test Plagiarism Detection Endpoint
-    plag_res = client.post(f"/api/analysis/plagiarism/{hack_id}?target_submission_id={sub_id}", headers=headers)
-    assert plag_res.status_code == 200
-    plag_data = plag_res.json()
-    assert "similarity_percentage" in plag_data
-    assert "risk_level" in plag_data
+    result = task_info["result"]
+    assert result["status"] == "completed"
+    assert "Semgrep" in result["tools_executed"]
+    assert "Pylint" in result["tools_executed"]
 
-    # 6. Test Docker Sandbox Execution Endpoint
+    vulns = result["security_vulnerabilities"]
+    assert len(vulns) >= 1
+    eval_findings = [v for v in vulns if "eval" in v["rule_id"].lower()]
+    assert len(eval_findings) >= 1
+    # Proves this is real Semgrep output, not the old hardcoded simulation
+    assert eval_findings[0]["rule_id"] != "security.python.eval-injection"
+    assert eval_findings[0]["tool"] == "Semgrep"
+
+
+def test_static_analysis_clean_code_has_no_findings(client):
+    headers, team_id = _register_participant_with_team(client, "clean@hackguard.ai", "CleanTeam")
+    hack_id = _create_hackathon(client, "org_clean@hackguard.ai")
+    sub_id = _submit_zip(client, headers, hack_id, team_id, {"calc.py": CLEAN_SNIPPET})
+
+    static_res = client.post(f"/api/analysis/run-static/{sub_id}", headers=headers)
+    task_info = _poll_task(client, headers, static_res.json()["task_id"])
+
+    result = task_info["result"]
+    assert result["status"] == "completed"
+    security_findings = [v for v in result["security_vulnerabilities"] if v["tool"] == "Semgrep"]
+    assert len(security_findings) == 0
+
+
+def test_static_analysis_skips_when_no_source(client):
+    headers, team_id = _register_participant_with_team(client, "nosource@hackguard.ai", "NoSourceTeam")
+    hack_id = _create_hackathon(client, "org_nosource@hackguard.ai")
+
+    res = client.post(
+        "/api/submissions/upload",
+        data={"hackathon_id": hack_id, "team_id": team_id, "readme_text": "# Just a readme, no code"},
+        headers=headers
+    )
+    sub_id = res.json()["id"]
+
+    static_res = client.post(f"/api/analysis/run-static/{sub_id}", headers=headers)
+    task_info = _poll_task(client, headers, static_res.json()["task_id"])
+
+    result = task_info["result"]
+    assert result["status"] == "skipped"
+    assert result["tools_executed"] == []
+
+
+def test_plagiarism_flags_near_duplicate_submissions(client):
+    hack_id = _create_hackathon(client, "org_plag@hackguard.ai")
+
+    headers_a, team_a = _register_participant_with_team(client, "plag_a@hackguard.ai", "TeamAlpha")
+    sub_a = _submit_zip(client, headers_a, hack_id, team_a, {"main.py": EVAL_SNIPPET_A})
+
+    headers_b, team_b = _register_participant_with_team(client, "plag_b@hackguard.ai", "TeamBeta")
+    sub_b = _submit_zip(client, headers_b, hack_id, team_b, {"main.py": EVAL_SNIPPET_A_CLONE})
+
+    headers_c, team_c = _register_participant_with_team(client, "plag_c@hackguard.ai", "TeamGamma")
+    sub_c = _submit_zip(client, headers_c, hack_id, team_c, {"calc.py": CLEAN_SNIPPET})
+
+    # Fingerprint A and C first so B has something to match against
+    for sub_id, headers in [(sub_a, headers_a), (sub_c, headers_c)]:
+        plag_res = client.post(f"/api/analysis/plagiarism/{sub_id}", headers=headers)
+        assert plag_res.status_code == 202
+        _poll_task(client, headers, plag_res.json()["task_id"])
+
+    plag_res_b = client.post(f"/api/analysis/plagiarism/{sub_b}", headers=headers_b)
+    task_info_b = _poll_task(client, headers_b, plag_res_b.json()["task_id"])
+    result_b = task_info_b["result"]
+
+    assert result_b["status"] == "completed"
+    assert result_b["similarity_percentage"] > 40.0
+    assert result_b["risk_level"] in ("MEDIUM", "CRITICAL")
+    assert result_b["flagged_matching_submission_id"] == sub_a
+
+
+def test_sandbox_endpoint_still_returns_simulated_result(client):
+    # sandbox_runner.py isn't rewritten until Phase 5 - this just proves the
+    # endpoint is now async (task_id + polling) without changing its
+    # (still-simulated) underlying behavior yet.
+    headers, team_id = _register_participant_with_team(client, "sandbox@hackguard.ai", "SandboxTeam")
+    hack_id = _create_hackathon(client, "org_sandbox@hackguard.ai")
+    sub_id = _submit_zip(client, headers, hack_id, team_id, {"main.py": CLEAN_SNIPPET})
+
     sandbox_res = client.post(f"/api/analysis/sandbox/{sub_id}", headers=headers)
-    assert sandbox_res.status_code == 200
-    sb_data = sandbox_res.json()
-    assert sb_data["build_status"] == "SUCCESS"
-    assert sb_data["unit_tests_passed"] == 12
-    assert "execution_logs" in sb_data
+    assert sandbox_res.status_code == 202
+    task_info = _poll_task(client, headers, sandbox_res.json()["task_id"])
+    assert task_info["status"] == "SUCCESS"
+    assert task_info["result"]["build_status"] == "SUCCESS"

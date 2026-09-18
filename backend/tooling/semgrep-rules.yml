@@ -1,0 +1,62 @@
+rules:
+  # NOTE: rules are deliberately split one-language-per-rule. Semgrep's
+  # generic call-pattern matching (e.g. `eval(...)`) silently produces zero
+  # matches when a single rule lists multiple languages together (verified:
+  # `languages: [python, javascript, typescript]` -> 0 findings on a file
+  # that plainly contains `eval(...)`, while the identical pattern with
+  # `languages: [python]` alone matches correctly) - not documented anywhere
+  # obvious, just observed behavior, so don't "simplify" this back to one
+  # multi-language rule per concern.
+
+  - id: hackguard-eval-exec-usage-python
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Dynamic code execution via eval()/exec() detected - can allow
+      arbitrary code injection if the argument is influenced by
+      untrusted input.
+    patterns:
+      - pattern-either:
+          - pattern: eval(...)
+          - pattern: exec(...)
+
+  - id: hackguard-eval-exec-usage-js
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      Dynamic code execution via eval() detected - can allow arbitrary
+      code injection if the argument is influenced by untrusted input.
+    patterns:
+      - pattern: eval(...)
+
+  - id: hackguard-hardcoded-secret-python
+    languages: [python]
+    severity: ERROR
+    message: "Possible hardcoded credential or secret key assigned as a literal string."
+    patterns:
+      - pattern: $VAR = "..."
+      - metavariable-regex:
+          metavariable: $VAR
+          regex: (?i)^(secret|password|passwd|api_key|apikey|token|access_key)
+
+  - id: hackguard-hardcoded-secret-js
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: "Possible hardcoded credential or secret key assigned as a literal string."
+    patterns:
+      - pattern: "const $VAR = \"...\""
+      - metavariable-regex:
+          metavariable: $VAR
+          regex: (?i)^(secret|password|passwd|api_key|apikey|token|access_key)
+
+  - id: hackguard-sql-injection-risk
+    languages: [python]
+    severity: WARNING
+    message: >-
+      SQL query built via string formatting/concatenation instead of
+      parameterized query placeholders - vulnerable to SQL injection.
+    patterns:
+      - pattern-either:
+          - pattern: $CUR.execute("..." % (...))
+          - pattern: $CUR.execute(f"...")
+          - pattern: $CUR.execute("..." + ...)
