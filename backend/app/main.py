@@ -2,11 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.database import engine, Base
-from app.routers import auth_router, team_router, hackathon_router, submission_router, analysis_router, evaluation_router
+from app.routers import auth_router, team_router, hackathon_router, submission_router, analysis_router, evaluation_router, tasks_router
 
-# Initialize database tables
-Base.metadata.create_all(bind=engine)
+# Schema is owned by Alembic migrations (see backend/alembic/) - run
+# `alembic upgrade head` before starting the app (the "migrate" service in
+# docker-compose.yml does this automatically).
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -33,6 +33,7 @@ app.include_router(hackathon_router.router)
 app.include_router(submission_router.router)
 app.include_router(analysis_router.router)
 app.include_router(evaluation_router.router)
+app.include_router(tasks_router.router)
 
 @app.get("/")
 def root():

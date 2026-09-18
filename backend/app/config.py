@@ -15,7 +15,8 @@ class Settings:
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 1440))
     
     # 2. Database
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./hackguard.db")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/hackguard_db")
+    TEST_DATABASE_URL: str = os.getenv("TEST_DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/hackguard_test")
     
     # 3. AI Services (Gemini API)
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
@@ -44,6 +45,12 @@ class Settings:
     MAX_VIDEO_SIZE_MB: int = int(os.getenv("MAX_VIDEO_SIZE_MB", 50))
     VIDEO_MIN_DURATION_SECONDS: int = int(os.getenv("VIDEO_MIN_DURATION_SECONDS", 180))
     VIDEO_MAX_DURATION_SECONDS: int = int(os.getenv("VIDEO_MAX_DURATION_SECONDS", 300))
+
+    # 9. Async task queue (Celery + Redis)
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    # Runs Celery tasks synchronously in-process (no worker/broker needed) -
+    # used for tests; real dev/prod always goes through the real worker.
+    CELERY_TASK_ALWAYS_EAGER: bool = os.getenv("CELERY_TASK_ALWAYS_EAGER", "false").lower() == "true"
 
     @property
     def cors_origins_list(self) -> list[str]:
