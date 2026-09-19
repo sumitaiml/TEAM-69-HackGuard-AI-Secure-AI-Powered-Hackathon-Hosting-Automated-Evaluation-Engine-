@@ -1,13 +1,23 @@
 import React from 'react';
 import { LayoutDashboard, Users, UploadCloud, FileText, Trophy, ShieldAlert, Sliders, LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import type { Role } from '../lib/types';
 
 interface SidebarProps {
-  currentRole: 'participant' | 'organizer' | 'judge';
+  currentRole: Role;
   activeTab: string;
   setActiveTab: (tab: string) => void;
 }
 
+function initials(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 0 || !parts[0]) return '?';
+  return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
+}
+
 export const Sidebar: React.FC<SidebarProps> = ({ currentRole, activeTab, setActiveTab }) => {
+  const { user, logout } = useAuth();
+
   return (
     <aside style={{
       width: '260px',
@@ -95,16 +105,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentRole, activeTab, setAct
             fontSize: '14px',
             fontWeight: '700'
           }}>
-            {currentRole === 'participant' ? 'ZM' : currentRole === 'organizer' ? 'AD' : 'JA'}
+            {user ? initials(user.full_name) : '?'}
           </div>
           <div>
             <div style={{ fontSize: '13px', fontWeight: '700' }}>
-              {currentRole === 'participant' ? 'Zoia M.' : currentRole === 'organizer' ? 'Admin Dave' : 'Judge Alan'}
+              {user?.full_name || 'Unknown user'}
             </div>
-            <div style={{ fontSize: '11px', color: '#9CA3AF' }}>Online</div>
+            <div style={{ fontSize: '11px', color: '#9CA3AF' }}>{user?.email}</div>
           </div>
         </div>
-        <LogOut size={16} style={{ color: '#9CA3AF', cursor: 'pointer' }} />
+        <button
+          onClick={logout}
+          title="Sign out"
+          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex' }}
+        >
+          <LogOut size={16} style={{ color: '#9CA3AF' }} />
+        </button>
       </div>
     </aside>
   );

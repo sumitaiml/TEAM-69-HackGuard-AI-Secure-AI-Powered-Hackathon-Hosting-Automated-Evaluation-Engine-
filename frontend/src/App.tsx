@@ -1,101 +1,69 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { ParticipantDashboard } from './components/ParticipantDashboard';
 import { OrganizerDashboard } from './components/OrganizerDashboard';
 import { JudgeDashboard } from './components/JudgeDashboard';
 import { LoginPage } from './components/LoginPage';
+import { AcceptInvitePage } from './components/AcceptInvitePage';
+import { useAuth } from './context/AuthContext';
+import { api } from './lib/apiClient';
+import type { HackathonItem } from './lib/types';
 
-export interface HackathonItem {
-  id: string;
-  title: string;
-  description: string;
-  startDate: string;
-  endDate: string;
-  status: string;
-  teamsCount: number;
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth();
+  if (isLoading) {
+    return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading…</div>;
+  }
+  if (!user) return <Navigate to="/login" replace />;
+  return <>{children}</>;
 }
 
-export function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentRole, setCurrentRole] = useState<'participant' | 'organizer' | 'judge'>('participant');
+function DashboardShell() {
+  const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
+  const [hackathons, setHackathons] = useState<HackathonItem[]>([]);
+  const [selectedHackathonId, setSelectedHackathonId] = useState('');
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  // Shared Global Hackathons State
-  const [hackathons, setHackathons] = useState<HackathonItem[]>([
-    {
-      id: 'h1',
-      title: 'TechNova 2026 AI Hackathon',
-      description: 'Global AI & DevOps Challenge',
-      startDate: '2026-09-18',
-      endDate: '2026-09-20',
-      status: 'Active',
-      teamsCount: 142
-    }
-  ]);
-  const [selectedHackathonId, setSelectedHackathonId] = useState('h1');
-
-  // Fetch from FastAPI backend on load
-  useEffect(() => {
-    fetch('http://localhost:8000/api/hackathons')
-      .then(res => res.ok ? res.json() : [])
-      .then(data => {
-        if (Array.isArray(data) && data.length > 0) {
-          const mapped = data.map((h: any) => ({
-            id: h.id,
-            title: h.title,
-            description: h.description || 'AI Hackathon Challenge',
-            startDate: h.created_at ? h.created_at.split('T')[0] : '2026-09-18',
-            endDate: '2026-09-25',
-            status: h.is_active ? 'Active' : 'Ended',
-            teamsCount: 142
-          }));
-          setHackathons(mapped);
-          setSelectedHackathonId(mapped[0].id);
-        }
+  const refetchHackathons = useCallback(() => {
+    api
+      .get<HackathonItem[]>('/api/hackathons')
+      .then((data) => {
+        setHackathons(data);
+        setLoadError(null);
+        setSelectedHackathonId((prev) => (prev && data.some((h) => h.id === prev) ? prev : data[0]?.id || ''));
       })
-      .catch(() => {
-        // Fallback to initial state if backend unavailable
-      });
+      .catch(() => setLoadError('Could not reach the backend to load hackathons.'));
   }, []);
 
-  const handleCreateHackathon = (title: string, description: string, startDate: string, endDate: string) => {
-    const newHack: HackathonItem = {
-      id: `h_${Date.now()}`,
+  useEffect(() => {
+    refetchHackathons();
+  }, [refetchHackathons]);
+
+  const handleCreateHackathon = async (title: string, description: string, startDate: string, endDate: string) => {
+    const created = await api.post<HackathonItem>('/api/hackathons/create', {
       title,
-      description: description || 'Custom Hackathon Event',
-      startDate,
-      endDate,
-      status: 'Active',
-      teamsCount: 0
-    };
-
-    setHackathons(prev => [newHack, ...prev]);
-    setSelectedHackathonId(newHack.id);
-
-    // Sync with FastAPI backend if token exists
-    fetch('http://localhost:8000/api/hackathons/create', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, description })
-    }).catch(() => {});
+      description,
+      start_date: startDate || undefined,
+      end_date: endDate || undefined,
+    });
+    setHackathons((prev) => [created, ...prev]);
+    setSelectedHackathonId(created.id);
   };
 
-  const handleLoginSuccess = (role: 'participant' | 'organizer' | 'judge', _userEmail: string) => {
-    setCurrentRole(role);
-    setActiveTab('overview');
-    setIsAuthenticated(true);
-  };
+  if (!user) return null;
 
   const getHeaderTitle = () => {
-    if (currentRole === 'participant') {
+    if (user.role === 'participant') {
       if (activeTab === 'team') return 'Team Management';
       if (activeTab === 'submit') return 'Project Submission Hub';
       if (activeTab === 'report') return 'AI Evaluation Report';
       if (activeTab === 'leaderboard') return 'Live Leaderboard';
       return 'Participant Overview';
     }
-    if (currentRole === 'organizer') {
+    if (user.role === 'organizer') {
       if (activeTab === 'rubric') return 'Evaluation Rubric Configurator';
       if (activeTab === 'fraud') return 'Plagiarism & Fraud Monitor';
       if (activeTab === 'leaderboard') return 'Results & Winner Publisher';
@@ -106,55 +74,41 @@ export function App() {
     return 'Judge Audit & Review Portal';
   };
 
-  if (!isAuthenticated) {
-    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
-  }
-
   return (
     <div className="app-shell">
-      <Sidebar
-        currentRole={currentRole}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-      />
+      <Sidebar currentRole={user.role} activeTab={activeTab} setActiveTab={setActiveTab} />
 
       <main className="main-content">
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
           <button
-            onClick={() => setIsAuthenticated(false)}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: '#6B7280',
-              fontSize: '12px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              textDecoration: 'underline'
-            }}
+            onClick={logout}
+            style={{ background: 'transparent', border: 'none', color: '#6B7280', fontSize: '12px', fontWeight: '600', cursor: 'pointer', textDecoration: 'underline' }}
           >
-            ← Sign Out / Lock Screen
+            ← Sign Out
           </button>
         </div>
 
-        <Header
-          currentRole={currentRole}
-          setCurrentRole={(role) => {
-            setCurrentRole(role);
-            setActiveTab('overview');
-          }}
-          title={getHeaderTitle()}
-        />
+        <Header title={getHeaderTitle()} />
 
-        <div className="animate-fade-in" key={`${currentRole}-${activeTab}`}>
-          {currentRole === 'participant' && (
+        {/* Keyed on role only (not activeTab) - remounting on every tab switch used to
+            wipe in-flight evaluation-polling state (evalTaskId) inside the dashboards. */}
+        <div className="animate-fade-in" key={user.role}>
+          {loadError && (
+            <div style={{ background: '#FEE2E2', color: '#991B1B', padding: '12px 16px', borderRadius: '12px', fontSize: '13px', fontWeight: 600, marginBottom: '16px' }}>
+              {loadError}
+            </div>
+          )}
+
+          {user.role === 'participant' && (
             <ParticipantDashboard
               activeTab={activeTab}
               setActiveTab={setActiveTab}
               hackathons={hackathons}
               selectedHackathonId={selectedHackathonId}
+              setSelectedHackathonId={setSelectedHackathonId}
             />
           )}
-          {currentRole === 'organizer' && (
+          {user.role === 'organizer' && (
             <OrganizerDashboard
               activeTab={activeTab}
               setActiveTab={setActiveTab}
@@ -164,17 +118,35 @@ export function App() {
               onCreateHackathon={handleCreateHackathon}
             />
           )}
-          {currentRole === 'judge' && (
+          {user.role === 'judge' && (
             <JudgeDashboard
               activeTab={activeTab}
               setActiveTab={setActiveTab}
               hackathons={hackathons}
               selectedHackathonId={selectedHackathonId}
+              setSelectedHackathonId={setSelectedHackathonId}
             />
           )}
         </div>
       </main>
     </div>
+  );
+}
+
+export function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/accept-invite" element={<AcceptInvitePage />} />
+      <Route
+        path="/*"
+        element={
+          <ProtectedRoute>
+            <DashboardShell />
+          </ProtectedRoute>
+        }
+      />
+    </Routes>
   );
 }
 

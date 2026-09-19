@@ -32,6 +32,8 @@ def create_hackathon(hack_in: schemas.HackathonCreate, current_user: models.User
     new_hack = models.Hackathon(
         title=hack_in.title,
         description=hack_in.description,
+        start_date=hack_in.start_date or datetime.utcnow(),
+        end_date=hack_in.end_date,
         rubric_weights_json=rubric_dict
     )
     db.add(new_hack)

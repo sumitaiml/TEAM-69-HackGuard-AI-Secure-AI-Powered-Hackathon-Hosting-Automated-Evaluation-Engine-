@@ -75,14 +75,18 @@ class RubricConfig(BaseModel):
 class HackathonCreate(BaseModel):
     title: str
     description: Optional[str] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
     rubric_weights: Optional[RubricConfig] = Field(default_factory=RubricConfig)
 
 class HackathonOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: str
     title: str
     description: Optional[str]
+    start_date: Optional[datetime]
+    end_date: Optional[datetime]
     rubric_weights_json: Optional[Dict[str, float]]
     is_active: bool
     created_at: datetime
