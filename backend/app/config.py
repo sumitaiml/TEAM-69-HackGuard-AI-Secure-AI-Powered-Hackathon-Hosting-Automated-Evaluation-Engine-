@@ -20,7 +20,11 @@ class Settings:
     
     # 3. AI Services (Gemini API)
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+    # gemini-1.5-flash and gemini-2.5-flash have both since been retired for
+    # new callers (confirmed directly against the live API while building
+    # this) - gemini-3.6-flash is what the API itself now recommends.
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
+    GEMINI_MODEL_FALLBACKS: str = os.getenv("GEMINI_MODEL_FALLBACKS", "gemini-3.5-flash,gemini-flash-latest")
     
     # 4. Whisper STT Model
     WHISPER_MODEL_SIZE: str = os.getenv("WHISPER_MODEL_SIZE", "base")

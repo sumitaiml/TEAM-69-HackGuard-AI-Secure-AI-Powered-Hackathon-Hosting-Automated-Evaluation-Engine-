@@ -26,3 +26,9 @@ datasketch>=1.6.4
 docker>=7.0.0
 faster-whisper>=1.0.0
 python-pptx>=0.6.23
+# google-generativeai (the classic SDK) is fully deprecated/EOL and has an
+# actual bug preventing Pydantic ge/le constraints from working in
+# response_schema ("Unknown field for Schema: maximum") - google-genai is
+# the actively maintained replacement.
+google-genai>=1.0.0
+tenacity>=8.2.0

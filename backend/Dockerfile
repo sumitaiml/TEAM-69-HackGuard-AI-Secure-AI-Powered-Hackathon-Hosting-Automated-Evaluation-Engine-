@@ -45,6 +45,9 @@ RUN pip install --no-cache-dir --timeout 30 --retries 15 \
 RUN pip install --no-cache-dir --timeout 30 --retries 15 "tree-sitter==0.21.3" "tree_sitter_languages>=1.10.2"
 RUN pip install --no-cache-dir --timeout 30 --retries 15 "semgrep>=1.45.0"
 RUN pip install --no-cache-dir --timeout 30 --retries 15 "faster-whisper>=1.0.0" "python-pptx>=0.6.23"
+# google-generativeai (classic SDK) is deprecated/EOL and buggy with
+# Pydantic ge/le constraints in response_schema - google-genai is current.
+RUN pip install --no-cache-dir --timeout 30 --retries 15 "google-genai>=1.0.0" "tenacity>=8.2.0"
 
 # Bake the Whisper model into the image at build time instead of leaving it
 # to download on first real use - avoids a runtime network dependency (and
@@ -62,6 +65,7 @@ import fastapi, uvicorn, pydantic, sqlalchemy, jose, passlib, multipart, pytest,
 import dotenv, email_validator, psycopg2, alembic, celery, redis, pylint; \
 import tree_sitter_languages, datasketch, docker; \
 import faster_whisper, pptx; \
+from google import genai; import tenacity; \
 print('all critical imports OK')" \
     && semgrep --version && eslint --version && ffmpeg -version | head -1
 

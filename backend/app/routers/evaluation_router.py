@@ -1,19 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List, Dict, Any, Optional
+from typing import Dict, Optional
 from pydantic import BaseModel
 
 from app import models, schemas
-from app.config import settings
 from app.database import get_db
 from app.auth import get_current_user, require_role
-from app.services.source_fetch import extract_submission_source
-from app.services.static_analysis import run_static_code_analysis
-from app.services.plagiarism_engine import run_plagiarism_check
-from app.tasks.sandbox_tasks import run_sandbox_task
-from app.services.whisper_engine import generate_whisper_transcript
-from app.services.ppt_engine import analyze_ppt_presentation
-from app.services.ai_evaluation import evaluate_project_with_ai
+from app.tasks.evaluation_tasks import run_full_evaluation_task
 
 router = APIRouter(prefix="/api/evaluation", tags=["Evaluation Engine & Leaderboard"])
 
@@ -22,64 +15,17 @@ class OverrideRequest(BaseModel):
     justification_notes: str
     judge_comments: Optional[str] = None
 
-@router.post("/evaluate/{submission_id}", response_model=schemas.EvaluationReportOut, status_code=status.HTTP_201_CREATED)
+@router.post("/evaluate/{submission_id}", status_code=status.HTTP_202_ACCEPTED)
 def trigger_full_evaluation(submission_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     sub = db.query(models.Submission).filter(models.Submission.id == submission_id).first()
     if not sub:
         raise HTTPException(status_code=404, detail="Submission not found")
 
-    hackathon = db.query(models.Hackathon).filter(models.Hackathon.id == sub.hackathon_id).first()
-    rubric_weights = hackathon.rubric_weights_json if hackathon and hackathon.rubric_weights_json else None
-
-    source_dir = extract_submission_source(sub)
-
-    # 1. Static Analysis
-    static_report = run_static_code_analysis(source_dir)
-
-    # 2. Plagiarism Check
-    plagiarism_report = run_plagiarism_check(db, sub, source_dir)
-
-    # 3. Docker Sandbox Execution - delegated to the worker via Celery
-    # (only the worker container has access to the Docker socket; this API
-    # process never touches it directly). Called synchronously here via
-    # .get() since /evaluate itself is still a synchronous endpoint until
-    # Phase 7 makes the whole pipeline async.
-    sandbox_report = run_sandbox_task.delay(sub.id).get(timeout=settings.DOCKER_TIMEOUT_SECONDS + 30)
-    static_report["sandbox_execution"] = sandbox_report
-
-    # 4. Whisper STT & PPT Analysis
-    whisper_report = generate_whisper_transcript(video_path=sub.video_path)
-    ppt_report = analyze_ppt_presentation(ppt_path=sub.ppt_path)
-
-    # 5. AI Multimodal Evaluation & Weighted Score
-    ai_evaluation = evaluate_project_with_ai(
-        readme_text=sub.readme_text or "",
-        code_content=sub.readme_text or "",
-        static_report=static_report,
-        plagiarism_report=plagiarism_report,
-        whisper_report=whisper_report,
-        ppt_report=ppt_report,
-        rubric_weights=rubric_weights
-    )
-
-    ai_evaluation["whisper_transcript"] = whisper_report
-    ai_evaluation["ppt_analysis"] = ppt_report
-
-    new_report = models.EvaluationReport(
-        submission_id=sub.id,
-        static_analysis_json=static_report,
-        plagiarism_json=plagiarism_report,
-        ai_scores_json=ai_evaluation,
-        final_score=ai_evaluation["overall_score"]
-    )
-
-    sub.status = "completed"
-
-    db.add(new_report)
+    sub.status = "evaluating"
     db.commit()
-    db.refresh(new_report)
 
-    return new_report
+    task = run_full_evaluation_task.delay(submission_id)
+    return {"task_id": task.id, "submission_id": submission_id, "status": "queued"}
 
 @router.get("/report/{submission_id}", response_model=schemas.EvaluationReportOut)
 def get_evaluation_report(submission_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
