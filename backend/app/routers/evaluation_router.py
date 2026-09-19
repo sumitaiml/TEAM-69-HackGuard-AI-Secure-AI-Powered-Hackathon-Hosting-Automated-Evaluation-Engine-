@@ -4,12 +4,13 @@ from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 
 from app import models, schemas
+from app.config import settings
 from app.database import get_db
 from app.auth import get_current_user, require_role
 from app.services.source_fetch import extract_submission_source
 from app.services.static_analysis import run_static_code_analysis
 from app.services.plagiarism_engine import run_plagiarism_check
-from app.services.sandbox_runner import execute_in_docker_sandbox
+from app.tasks.sandbox_tasks import run_sandbox_task
 from app.services.ai_evaluation import (
     generate_whisper_transcript,
     analyze_ppt_presentation,
@@ -40,8 +41,12 @@ def trigger_full_evaluation(submission_id: str, db: Session = Depends(get_db), c
     # 2. Plagiarism Check
     plagiarism_report = run_plagiarism_check(db, sub, source_dir)
 
-    # 3. Docker Sandbox Execution
-    sandbox_report = execute_in_docker_sandbox(submission_id=sub.id, github_url=sub.github_url or "", zip_path=sub.zip_path or "")
+    # 3. Docker Sandbox Execution - delegated to the worker via Celery
+    # (only the worker container has access to the Docker socket; this API
+    # process never touches it directly). Called synchronously here via
+    # .get() since /evaluate itself is still a synchronous endpoint until
+    # Phase 7 makes the whole pipeline async.
+    sandbox_report = run_sandbox_task.delay(sub.id).get(timeout=settings.DOCKER_TIMEOUT_SECONDS + 30)
     static_report["sandbox_execution"] = sandbox_report
 
     # 4. Whisper STT & PPT Analysis

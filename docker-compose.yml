@@ -113,4 +113,9 @@ services:
 
 volumes:
   pgdata:
+  # Fixed external name (not project-prefixed) - the worker references this
+  # exact name via the Docker SDK when mounting it into sibling sandbox
+  # containers (Phase 5), so it can't be allowed to drift with the compose
+  # project name.
   sandbox_workspace:
+    name: hackguard_sandbox_workspace

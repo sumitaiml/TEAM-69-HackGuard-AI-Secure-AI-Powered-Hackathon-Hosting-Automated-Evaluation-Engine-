@@ -36,13 +36,25 @@ RUN pip install --no-cache-dir --timeout 30 --retries 15 \
     "python-jose[cryptography]>=3.3.0" "passlib[bcrypt]>=1.7.4" "python-multipart>=0.0.6" \
     "pytest>=7.4.0" "httpx>=0.24.1" "bcrypt==4.0.1" "python-dotenv>=1.0.0" \
     "email-validator>=2.0.0" "psycopg2-binary>=2.9.9" "alembic>=1.13.0" \
-    "celery>=5.3.6" "redis>=5.0.1" "datasketch>=1.6.4" "pylint>=3.0.0"
+    "celery>=5.3.6" "redis>=5.0.1" "datasketch>=1.6.4" "pylint>=3.0.0" "docker>=7.0.0"
 # tree_sitter_languages 1.10.2 (latest release) was never updated for the
 # tree-sitter 0.22+ Language() constructor signature change - installing
 # plain tree-sitter would pull the newest version and get_parser() would
 # raise "TypeError: __init__() takes exactly 1 argument (2 given)".
 RUN pip install --no-cache-dir --timeout 30 --retries 15 "tree-sitter==0.21.3" "tree_sitter_languages>=1.10.2"
 RUN pip install --no-cache-dir --timeout 30 --retries 15 "semgrep>=1.45.0"
+
+# requirements.txt is NOT re-read by pip after this point (see note above) -
+# this import/binary smoke test is what actually catches "added a package to
+# requirements.txt but forgot to add it to one of the RUN lines above" at
+# build time instead of as a runtime ModuleNotFoundError (this has happened
+# twice already: tree_sitter_languages/datasketch, then docker).
+RUN python -c "\
+import fastapi, uvicorn, pydantic, sqlalchemy, jose, passlib, multipart, pytest, httpx, bcrypt; \
+import dotenv, email_validator, psycopg2, alembic, celery, redis, pylint; \
+import tree_sitter_languages, datasketch, docker; \
+print('all critical imports OK')" \
+    && semgrep --version && eslint --version
 
 COPY . .
 

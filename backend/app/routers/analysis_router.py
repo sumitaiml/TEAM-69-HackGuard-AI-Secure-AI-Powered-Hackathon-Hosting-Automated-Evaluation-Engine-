@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 from app import models
 from app.database import get_db
 from app.auth import get_current_user
-from app.tasks.analysis_tasks import run_static_analysis_task, run_plagiarism_task, run_sandbox_task
+from app.tasks.analysis_tasks import run_static_analysis_task, run_plagiarism_task
+from app.tasks.sandbox_tasks import run_sandbox_task
 
 router = APIRouter(prefix="/api/analysis", tags=["Security & Analysis"])
 

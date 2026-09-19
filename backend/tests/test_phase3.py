@@ -249,10 +249,12 @@ def test_plagiarism_flags_near_duplicate_submissions(client):
     assert result_b["flagged_matching_submission_id"] == sub_a
 
 
-def test_sandbox_endpoint_still_returns_simulated_result(client):
-    # sandbox_runner.py isn't rewritten until Phase 5 - this just proves the
-    # endpoint is now async (task_id + polling) without changing its
-    # (still-simulated) underlying behavior yet.
+def test_sandbox_endpoint_skips_unrecognized_project(client):
+    # CLEAN_SNIPPET has no package.json/requirements.txt/pyproject.toml, so
+    # this exercises the real (non-mocked) sandbox_runner - it should skip
+    # before ever touching the Docker daemon, which is why this doesn't need
+    # docker socket access to run (the api container, where pytest runs,
+    # deliberately doesn't have it - only the worker does).
     headers, team_id = _register_participant_with_team(client, "sandbox@hackguard.ai", "SandboxTeam")
     hack_id = _create_hackathon(client, "org_sandbox@hackguard.ai")
     sub_id = _submit_zip(client, headers, hack_id, team_id, {"main.py": CLEAN_SNIPPET})
@@ -261,4 +263,36 @@ def test_sandbox_endpoint_still_returns_simulated_result(client):
     assert sandbox_res.status_code == 202
     task_info = _poll_task(client, headers, sandbox_res.json()["task_id"])
     assert task_info["status"] == "SUCCESS"
-    assert task_info["result"]["build_status"] == "SUCCESS"
+    assert task_info["result"]["status"] == "skipped"
+    assert task_info["result"]["build_status"] == "SKIPPED"
+
+
+def test_sandbox_endpoint_mocked_successful_execution(client, monkeypatch):
+    # Real sandbox execution (spawning containers via the Docker socket) is
+    # only possible from the worker, not from pytest running inside the api
+    # container - so the actual container-running behavior is verified
+    # manually against the live stack instead, and this test proves the
+    # task/endpoint plumbing correctly wires up and returns whatever
+    # sandbox_runner produces.
+    import app.tasks.sandbox_tasks as sandbox_tasks
+
+    fake_result = {
+        "status": "completed",
+        "build_status": "SUCCESS",
+        "unit_tests_passed": 4,
+        "unit_tests_failed": 0,
+        "execution_time_seconds": 12.3,
+        "execution_logs": ["[INFO] mocked run"],
+        "error": None,
+    }
+    monkeypatch.setattr(sandbox_tasks, "execute_in_docker_sandbox", lambda submission_id, source_dir: fake_result)
+
+    headers, team_id = _register_participant_with_team(client, "sandbox_mock@hackguard.ai", "SandboxMockTeam")
+    hack_id = _create_hackathon(client, "org_sandbox_mock@hackguard.ai")
+    sub_id = _submit_zip(client, headers, hack_id, team_id, {"main.py": CLEAN_SNIPPET})
+
+    sandbox_res = client.post(f"/api/analysis/sandbox/{sub_id}", headers=headers)
+    assert sandbox_res.status_code == 202
+    task_info = _poll_task(client, headers, sandbox_res.json()["task_id"])
+    assert task_info["status"] == "SUCCESS"
+    assert task_info["result"] == fake_result

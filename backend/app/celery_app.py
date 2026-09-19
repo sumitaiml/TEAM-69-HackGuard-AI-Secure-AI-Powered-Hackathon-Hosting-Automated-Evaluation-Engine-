@@ -10,7 +10,7 @@ celery_app = Celery(
     # which only imports this module - without `include`, task modules
     # decorated with @celery_app.task elsewhere are never imported there,
     # so the worker doesn't know they exist ("KeyError: <task name>").
-    include=["app.tasks.analysis_tasks"],
+    include=["app.tasks.analysis_tasks", "app.tasks.sandbox_tasks"],
 )
 
 celery_app.conf.update(

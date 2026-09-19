@@ -34,6 +34,16 @@ class Settings:
     DOCKER_MEMORY_LIMIT: str = os.getenv("DOCKER_MEMORY_LIMIT", "512m")
     DOCKER_CPU_CAP: float = float(os.getenv("DOCKER_CPU_CAP", 1.0))
     DOCKER_TIMEOUT_SECONDS: int = int(os.getenv("DOCKER_TIMEOUT_SECONDS", 60))
+    DOCKER_PIDS_LIMIT: int = int(os.getenv("DOCKER_PIDS_LIMIT", 64))
+    # Fixed Docker volume name (see docker-compose.yml's `name:` override) -
+    # sibling sandbox containers mount this by name via the host daemon
+    # (DooD), so it must match exactly regardless of compose project name.
+    SANDBOX_VOLUME_NAME: str = os.getenv("SANDBOX_VOLUME_NAME", "hackguard_sandbox_workspace")
+    # Dedicated bridge network for sandbox containers, created idempotently
+    # by the worker on first use - deliberately NOT the compose-managed
+    # internal network, so sandboxed code can never reach postgres/redis/
+    # api/worker even during the network-on install phase.
+    SANDBOX_NETWORK_NAME: str = os.getenv("SANDBOX_NETWORK_NAME", "hackguard-sandbox-net")
 
     # 7. CORS
     # Comma-separated list of allowed origins for the frontend SPA.
