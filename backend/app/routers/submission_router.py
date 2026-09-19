@@ -31,6 +31,14 @@ def _is_team_member(db: Session, team_id: str, user_id: str) -> bool:
     ).first() is not None
 
 
+def _judge_has_accepted_invite(db: Session, user: models.User, hackathon_id: str) -> bool:
+    return db.query(models.JudgeInvite).filter(
+        models.JudgeInvite.hackathon_id == hackathon_id,
+        models.JudgeInvite.email == user.email,
+        models.JudgeInvite.status == "accepted",
+    ).first() is not None
+
+
 @router.post("/upload", response_model=schemas.SubmissionOut, status_code=status.HTTP_201_CREATED)
 async def submit_project(
     hackathon_id: str = Form(...),
@@ -119,9 +127,14 @@ def get_submission(submission_id: str, current_user: models.User = Depends(get_c
     if not sub:
         raise HTTPException(status_code=404, detail="Submission not found")
 
-    # TODO(Phase 8): once JudgeInvite exists, scope judge/organizer access to
-    # only the hackathons they're actually attached to, not every hackathon.
-    if current_user.role not in ("organizer", "judge", "admin") and not _is_team_member(db, sub.team_id, current_user.id):
+    # Organizers/admins can see any submission (no per-hackathon ownership
+    # field exists on Hackathon yet, so this stays broad). Judges are scoped
+    # to hackathons they've actually accepted an invite for; anyone else
+    # must be a member of the submitting team.
+    if current_user.role == "judge":
+        if not _judge_has_accepted_invite(db, current_user, sub.hackathon_id):
+            raise HTTPException(status_code=403, detail="You are not an accepted judge for this hackathon")
+    elif current_user.role not in ("organizer", "admin") and not _is_team_member(db, sub.team_id, current_user.id):
         raise HTTPException(status_code=403, detail="You do not have access to this submission")
 
     return sub
@@ -129,7 +142,10 @@ def get_submission(submission_id: str, current_user: models.User = Depends(get_c
 
 @router.get("/team/{team_id}", response_model=List[schemas.SubmissionOut])
 def get_team_submissions(team_id: str, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
-    # TODO(Phase 8): scope judge/organizer access to their own hackathons only.
+    # Team membership doesn't map to a single hackathon (a team can submit to
+    # several), so judge access here isn't scoped per-hackathon like the
+    # single-submission endpoint above - judges reviewing a specific project
+    # (the primary judge workflow) should use GET /submissions/{id} instead.
     if current_user.role not in ("organizer", "judge", "admin") and not _is_team_member(db, team_id, current_user.id):
         raise HTTPException(status_code=403, detail="You do not have access to this team's submissions")
 

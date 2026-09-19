@@ -49,21 +49,30 @@ def test_phase4_evaluation_override_and_leaderboard(client, monkeypatch):
     org_token = org_res.json()["access_token"]
     org_headers = {"Authorization": f"Bearer {org_token}"}
 
-    judge_res = client.post("/api/auth/register", json={
-        "email": "phase4_judge@hackguard.ai",
-        "password": "password123",
-        "full_name": "Judge Alan",
-        "role": "judge"
-    })
-    judge_token = judge_res.json()["access_token"]
-    judge_headers = {"Authorization": f"Bearer {judge_token}"}
-
     # 2. Setup Team & Hackathon
     team_res = client.post("/api/teams/create", json={"name": "NeuralNetTeam"}, headers=part_headers)
     team_id = team_res.json()["id"]
 
     hack_res = client.post("/api/hackathons/create", json={"title": "AI World Cup 2026"}, headers=org_headers)
     hack_id = hack_res.json()["id"]
+
+    # Judges are invited by the organizer, not self-registered - accept the
+    # invite (dev_invite_link, since no SMTP is configured in tests) to get
+    # a real judge account.
+    invite_res = client.post(
+        f"/api/hackathons/{hack_id}/invite-judge",
+        json={"email": "phase4_judge@hackguard.ai"},
+        headers=org_headers
+    )
+    assert invite_res.status_code == 201
+    invite_token = invite_res.json()["dev_invite_link"].split("token=")[1]
+    accept_res = client.post(
+        f"/api/auth/invite/{invite_token}/accept",
+        json={"full_name": "Judge Alan", "password": "password123"}
+    )
+    assert accept_res.status_code == 200
+    judge_token = accept_res.json()["access_token"]
+    judge_headers = {"Authorization": f"Bearer {judge_token}"}
 
     # 3. Submit Project
     sub_res = client.post(

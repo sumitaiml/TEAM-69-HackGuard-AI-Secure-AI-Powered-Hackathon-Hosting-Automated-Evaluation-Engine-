@@ -71,6 +71,21 @@ class Settings:
     # named Docker volume here so work done by one is visible to the other.
     WORKSPACE_ROOT: str = os.getenv("WORKSPACE_ROOT", "./workspace")
 
+    # 11. Judge invites & email delivery
+    # Used to build the accept-invite link sent to invited judges.
+    FRONTEND_BASE_URL: str = os.getenv("FRONTEND_BASE_URL", "http://localhost:5173")
+    JUDGE_INVITE_EXPIRY_DAYS: int = int(os.getenv("JUDGE_INVITE_EXPIRY_DAYS", 7))
+    # If SMTP_HOST is unset, invite emails aren't actually sent - the invite
+    # link is returned directly in the API response instead (dev_invite_link)
+    # so the feature works end-to-end without a real mail provider. Wiring in
+    # real SMTP later is just setting these env vars, not a code change.
+    SMTP_HOST: str = os.getenv("SMTP_HOST", "")
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", 587))
+    SMTP_USERNAME: str = os.getenv("SMTP_USERNAME", "")
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
+    SMTP_FROM_ADDRESS: str = os.getenv("SMTP_FROM_ADDRESS", "no-reply@hackguard.ai")
+    SMTP_USE_TLS: bool = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]

@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from app import models, schemas
 from app.database import get_db
 from app.auth import get_current_user, require_role
+from app.services.audit_log import record_audit_event
 from app.tasks.evaluation_tasks import run_full_evaluation_task
 
 router = APIRouter(prefix="/api/evaluation", tags=["Evaluation Engine & Leaderboard"])
@@ -70,6 +71,12 @@ def override_judge_score(
     }
     report.judge_comments = override_data.judge_comments
     report.final_score = new_final_score
+
+    record_audit_event(
+        db, actor_user_id=current_user.id, action="score_override",
+        entity_type="evaluation_report", entity_id=report.id,
+        metadata={"parameter_scores": override_data.parameter_scores, "new_final_score": new_final_score},
+    )
 
     db.commit()
     db.refresh(report)

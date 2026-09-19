@@ -1,13 +1,25 @@
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+
+_SELF_REGISTERABLE_ROLES = ("participant", "organizer")
 
 # --- Auth Schemas ---
 class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=6)
     full_name: str
-    role: str = "participant" # participant, organizer, judge
+    role: str = "participant"  # participant or organizer only - judges are invited, see JudgeInvite
+
+    @field_validator("role")
+    @classmethod
+    def validate_self_registerable_role(cls, v: str) -> str:
+        if v not in _SELF_REGISTERABLE_ROLES:
+            raise ValueError(
+                f"role must be one of {_SELF_REGISTERABLE_ROLES} - judges are invited by an "
+                "organizer (POST /api/hackathons/{id}/invite-judge), not self-registered"
+            )
+        return v
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -113,3 +125,28 @@ class EvaluationReportOut(BaseModel):
     judge_override_json: Optional[Dict[str, Any]]
     judge_comments: Optional[str]
     created_at: datetime
+
+# --- Judge Invite Schemas ---
+class JudgeInviteCreate(BaseModel):
+    email: EmailStr
+
+class JudgeInviteOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    hackathon_id: str
+    email: str
+    status: str
+    expires_at: datetime
+    created_at: datetime
+
+class InviteDetailsOut(BaseModel):
+    email: str
+    hackathon_id: str
+    hackathon_title: str
+    status: str
+    expires_at: datetime
+
+class InviteAcceptRequest(BaseModel):
+    full_name: str
+    password: str = Field(..., min_length=6)

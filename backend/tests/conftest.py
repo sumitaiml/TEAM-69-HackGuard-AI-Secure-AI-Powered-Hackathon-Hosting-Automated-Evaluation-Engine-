@@ -52,3 +52,14 @@ def setup_test_db():
 @pytest.fixture
 def client():
     return TestClient(app)
+
+
+@pytest.fixture
+def db_session():
+    """A direct DB session for tests that need to assert on rows the API
+    doesn't expose through any endpoint (e.g. AuditLog)."""
+    db = TestingSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

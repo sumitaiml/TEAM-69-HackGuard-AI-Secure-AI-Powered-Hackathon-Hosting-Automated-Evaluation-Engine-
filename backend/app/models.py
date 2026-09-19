@@ -111,3 +111,27 @@ class PlagiarismFingerprint(Base):
     __table_args__ = (
         Index("ix_plagiarism_fingerprints_minhash_gin", "minhash_signature", postgresql_using="gin"),
     )
+
+class JudgeInvite(Base):
+    __tablename__ = "judge_invites"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    hackathon_id = Column(String, ForeignKey("hackathons.id"), nullable=False)
+    email = Column(String, nullable=False, index=True)
+    token = Column(String, unique=True, index=True, nullable=False)
+    invited_by_user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    status = Column(String, default="pending")  # pending, accepted, expired, revoked
+    expires_at = Column(DateTime, nullable=False)
+    accepted_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    actor_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    action = Column(String, nullable=False)  # e.g. judge_invite_created, judge_invite_accepted, score_override, rubric_updated
+    entity_type = Column(String, nullable=False)  # e.g. judge_invite, evaluation_report, hackathon
+    entity_id = Column(String, nullable=False)
+    metadata_json = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
