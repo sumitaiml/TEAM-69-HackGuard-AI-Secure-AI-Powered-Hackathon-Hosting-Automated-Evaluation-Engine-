@@ -1,42 +1,5 @@
 from typing import Dict, Any, Optional
 
-def generate_whisper_transcript(video_path: Optional[str] = None) -> Dict[str, Any]:
-    """
-    Module 11: Demo Video Analysis & Whisper Speech-to-Text Engine.
-    Converts demo video audio into searchable transcripts and extracts presented features.
-    """
-    transcript = (
-        "Welcome to our HackGuard AI presentation. Today we are demonstrating our automated hackathon evaluation platform. "
-        "We built a secure Docker sandbox execution engine, AST plagiarism detection algorithm, and real-time leaderboards. "
-        "Our frontend is built with React, Vite, and custom glassmorphism design, connected to a FastAPI backend."
-    )
-    
-    return {
-        "transcript": transcript,
-        "communication_score": 92.0,
-        "feature_coverage_percentage": 95.0,
-        "confidence_score": 96.5,
-        "audio_processed": True if video_path else False
-    }
-
-def analyze_ppt_presentation(ppt_path: Optional[str] = None) -> Dict[str, Any]:
-    """
-    Module 10: PPT Analysis Engine.
-    Extracts Problem Statement, Architecture, Market Potential, and Innovation metrics.
-    """
-    return {
-        "presentation_score": 88.0,
-        "extracted_sections": {
-            "problem_statement": "Manual hackathon judging is slow, biased, and prone to plagiarism.",
-            "solution": "AI-powered automated multi-modal evaluation engine with Docker sandboxes.",
-            "architecture": "Microservices backend with FastAPI, PostgreSQL, Docker, and React SPA frontend.",
-            "market_potential": "High demand among universities, enterprises, and developer communities.",
-            "business_model": "SaaS subscription per hackathon event."
-        },
-        "missing_sections": [],
-        "improvement_suggestions": ["Add competitor comparison matrix on slide 6."]
-    }
-
 def evaluate_project_with_ai(
     readme_text: str = "",
     code_content: str = "",
@@ -69,7 +32,11 @@ def evaluate_project_with_ai(
     ui_score = 90.0
     impact_score = 86.0
     doc_score = 92.0 if len(readme_text) > 20 else 65.0
-    pres_score = float(ppt_report.get("presentation_score", 85.0)) if ppt_report else 85.0
+    # ppt_report is now real slide-text extraction only (Phase 6) - it has no
+    # qualitative "presentation_score" to read. A real score here requires
+    # judging what's actually on the slides, which is Phase 7's job (Gemini);
+    # until then this is a fixed placeholder, not a computed judgment.
+    pres_score = 85.0
 
     parameter_scores = {
         "technical_complexity": tech_score,

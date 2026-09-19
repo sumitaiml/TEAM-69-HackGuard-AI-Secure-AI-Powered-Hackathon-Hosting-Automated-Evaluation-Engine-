@@ -11,11 +11,9 @@ from app.services.source_fetch import extract_submission_source
 from app.services.static_analysis import run_static_code_analysis
 from app.services.plagiarism_engine import run_plagiarism_check
 from app.tasks.sandbox_tasks import run_sandbox_task
-from app.services.ai_evaluation import (
-    generate_whisper_transcript,
-    analyze_ppt_presentation,
-    evaluate_project_with_ai
-)
+from app.services.whisper_engine import generate_whisper_transcript
+from app.services.ppt_engine import analyze_ppt_presentation
+from app.services.ai_evaluation import evaluate_project_with_ai
 
 router = APIRouter(prefix="/api/evaluation", tags=["Evaluation Engine & Leaderboard"])
 

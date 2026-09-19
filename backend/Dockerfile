@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     git \
     xz-utils \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Node.js from the official binary tarball rather than Debian's apt package -
@@ -43,6 +44,13 @@ RUN pip install --no-cache-dir --timeout 30 --retries 15 \
 # raise "TypeError: __init__() takes exactly 1 argument (2 given)".
 RUN pip install --no-cache-dir --timeout 30 --retries 15 "tree-sitter==0.21.3" "tree_sitter_languages>=1.10.2"
 RUN pip install --no-cache-dir --timeout 30 --retries 15 "semgrep>=1.45.0"
+RUN pip install --no-cache-dir --timeout 30 --retries 15 "faster-whisper>=1.0.0" "python-pptx>=0.6.23"
+
+# Bake the Whisper model into the image at build time instead of leaving it
+# to download on first real use - avoids a runtime network dependency (and
+# an unpredictable first-request delay) inside the worker/api containers.
+ARG WHISPER_MODEL_SIZE=base
+RUN python -c "from faster_whisper import WhisperModel; WhisperModel('${WHISPER_MODEL_SIZE}', device='cpu', compute_type='int8')"
 
 # requirements.txt is NOT re-read by pip after this point (see note above) -
 # this import/binary smoke test is what actually catches "added a package to
@@ -53,8 +61,9 @@ RUN python -c "\
 import fastapi, uvicorn, pydantic, sqlalchemy, jose, passlib, multipart, pytest, httpx, bcrypt; \
 import dotenv, email_validator, psycopg2, alembic, celery, redis, pylint; \
 import tree_sitter_languages, datasketch, docker; \
+import faster_whisper, pptx; \
 print('all critical imports OK')" \
-    && semgrep --version && eslint --version
+    && semgrep --version && eslint --version && ffmpeg -version | head -1
 
 COPY . .
 
