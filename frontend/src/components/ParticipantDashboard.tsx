@@ -434,12 +434,17 @@ const LeaderboardTable: React.FC<{ entries: LeaderboardEntry[]; highlightTeamId?
     <table className="data-table">
       <thead>
         <tr>
-          <th>Rank</th><th>Team Name</th>{!compact && <th>Tech Stack</th>}<th>AI Score</th><th>Plagiarism Risk</th><th>Status</th>
+          <th>Rank</th><th>Team Name</th>{!compact && <th>Tech Stack</th>}<th>AI Score</th>
+          {!compact && <th>Technical</th>}
+          {!compact && <th>Innovation</th>}
+          {!compact && <th>UI/UX</th>}
+          {!compact && <th>Impact</th>}
+          <th>Plagiarism Risk</th><th>Status</th>
         </tr>
       </thead>
       <tbody>
         {entries.length === 0 && (
-          <tr><td colSpan={compact ? 5 : 6} style={{ color: 'var(--text-secondary)' }}>No submissions evaluated yet.</td></tr>
+          <tr><td colSpan={compact ? 5 : 10} style={{ color: 'var(--text-secondary)' }}>No submissions evaluated yet.</td></tr>
         )}
         {entries.map((t) => (
           <tr key={t.submission_id} style={{ background: t.team_id === highlightTeamId ? '#F0F7FF' : 'transparent' }}>
@@ -447,6 +452,10 @@ const LeaderboardTable: React.FC<{ entries: LeaderboardEntry[]; highlightTeamId?
             <td style={{ fontWeight: '700' }}>{t.team_name}</td>
             {!compact && <td style={{ color: 'var(--text-secondary)' }}>{t.tech_stack}</td>}
             <td style={{ fontWeight: '800', fontSize: '15px' }}>{t.score}</td>
+            {!compact && <td style={{ color: 'var(--text-secondary)' }}>{t.parameter_scores?.technical_complexity ?? '—'}</td>}
+            {!compact && <td style={{ color: 'var(--text-secondary)' }}>{t.parameter_scores?.innovation ?? '—'}</td>}
+            {!compact && <td style={{ color: 'var(--text-secondary)' }}>{t.parameter_scores?.ui_ux ?? '—'}</td>}
+            {!compact && <td style={{ color: 'var(--text-secondary)' }}>{t.parameter_scores?.business_impact ?? '—'}</td>}
             <td><span className={`pill-badge ${t.plagiarism_risk === 'CRITICAL' ? 'red' : t.plagiarism_risk === 'MEDIUM' ? 'amber' : 'green'}`}>{t.plagiarism_risk}</span></td>
             <td><span className="pill-badge blue">{t.status}</span></td>
           </tr>

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { ApiError, formatApiError } from '../lib/apiClient';
+import { api, ApiError, formatApiError } from '../lib/apiClient';
 
 // Judges don't self-register - they accept an invite from an organizer
 // (see AcceptInvitePage) - so signup only ever offers these two roles.
@@ -12,7 +12,7 @@ export const LoginPage: React.FC = () => {
   const { login, register } = useAuth();
   const navigate = useNavigate();
 
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -20,23 +20,34 @@ export const LoginPage: React.FC = () => {
   const [rememberMe, setRememberMe] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [forgotSubmitted, setForgotSubmitted] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError(null);
     try {
-      if (mode === 'signin') {
+      if (mode === 'forgot') {
+        await api.post('/api/auth/forgot-password', { email });
+        setForgotSubmitted(true);
+      } else if (mode === 'signin') {
         await login(email, password);
+        navigate('/');
       } else {
         await register(email, password, fullName, selectedRole);
+        navigate('/');
       }
-      navigate('/');
     } catch (err) {
       setError(err instanceof ApiError ? formatApiError(err.detail, 'Incorrect email or password') : 'Could not connect to the server.');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const switchMode = (next: 'signin' | 'signup' | 'forgot') => {
+    setMode(next);
+    setError(null);
+    setForgotSubmitted(false);
   };
 
   return (
@@ -131,44 +142,46 @@ export const LoginPage: React.FC = () => {
           <div>
             {/* Header Controls */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
-              <div style={{ background: '#F3F4F6', borderRadius: '99px', padding: '4px', display: 'flex' }}>
-                <button
-                  type="button"
-                  onClick={() => setMode('signin')}
-                  style={{
-                    border: 'none',
-                    background: mode === 'signin' ? '#FFFFFF' : 'transparent',
-                    color: mode === 'signin' ? '#111827' : '#6B7280',
-                    padding: '8px 20px',
-                    borderRadius: '99px',
-                    fontSize: '14px',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                    boxShadow: mode === 'signin' ? '0 2px 6px rgba(0,0,0,0.05)' : 'none',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  Sign In
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMode('signup')}
-                  style={{
-                    border: 'none',
-                    background: mode === 'signup' ? '#FFFFFF' : 'transparent',
-                    color: mode === 'signup' ? '#111827' : '#6B7280',
-                    padding: '8px 20px',
-                    borderRadius: '99px',
-                    fontSize: '14px',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                    boxShadow: mode === 'signup' ? '0 2px 6px rgba(0,0,0,0.05)' : 'none',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  Create Account
-                </button>
-              </div>
+              {mode !== 'forgot' && (
+                <div style={{ background: '#F3F4F6', borderRadius: '99px', padding: '4px', display: 'flex' }}>
+                  <button
+                    type="button"
+                    onClick={() => switchMode('signin')}
+                    style={{
+                      border: 'none',
+                      background: mode === 'signin' ? '#FFFFFF' : 'transparent',
+                      color: mode === 'signin' ? '#111827' : '#6B7280',
+                      padding: '8px 20px',
+                      borderRadius: '99px',
+                      fontSize: '14px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      boxShadow: mode === 'signin' ? '0 2px 6px rgba(0,0,0,0.05)' : 'none',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => switchMode('signup')}
+                    style={{
+                      border: 'none',
+                      background: mode === 'signup' ? '#FFFFFF' : 'transparent',
+                      color: mode === 'signup' ? '#111827' : '#6B7280',
+                      padding: '8px 20px',
+                      borderRadius: '99px',
+                      fontSize: '14px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      boxShadow: mode === 'signup' ? '0 2px 6px rgba(0,0,0,0.05)' : 'none',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    Create Account
+                  </button>
+                </div>
+              )}
 
               <span style={{ fontSize: '13px', color: '#6B7280', cursor: 'pointer', fontWeight: '600' }}>
                 Help & Support &gt;
@@ -177,15 +190,27 @@ export const LoginPage: React.FC = () => {
 
             {/* Welcome Heading */}
             <h2 style={{ fontSize: '26px', fontWeight: '800', marginBottom: '6px' }}>
-              {mode === 'signin' ? 'Welcome back' : 'Create your account'}
+              {mode === 'signin' ? 'Welcome back' : mode === 'signup' ? 'Create your account' : 'Reset your password'}
             </h2>
             <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '24px' }}>
               {mode === 'signin'
                 ? 'Access your real-time hackathon evaluation reports, dashboards, and leaderboards.'
-                : 'Judges are invited by an organizer, not registered here - pick participant or organizer.'}
+                : mode === 'signup'
+                ? 'Judges are invited by an organizer, not registered here - pick participant or organizer.'
+                : "Enter your account's email and we'll send you a link to reset your password."}
             </p>
 
             {/* Form */}
+            {mode === 'forgot' && forgotSubmitted ? (
+              <div>
+                <div style={{ background: '#E6F7F0', color: '#10B981', padding: '14px', borderRadius: '12px', fontSize: '13px', fontWeight: 600, marginBottom: '20px' }}>
+                  If an account with that email exists, a password reset link has been sent.
+                </div>
+                <button type="button" onClick={() => switchMode('signin')} style={{ background: 'none', border: 'none', color: '#2B7FFF', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
+                  ← Back to Sign In
+                </button>
+              </div>
+            ) : (
             <form onSubmit={handleSubmit}>
               {mode === 'signup' && (
                 <div style={{ marginBottom: '14px' }}>
@@ -216,23 +241,30 @@ export const LoginPage: React.FC = () => {
                 </div>
               </div>
 
-              <div style={{ marginBottom: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: '800', color: '#374151', textTransform: 'uppercase' }}>Password</label>
+              {mode !== 'forgot' && (
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: '800', color: '#374151', textTransform: 'uppercase' }}>Password</label>
+                    {mode === 'signin' && (
+                      <button type="button" onClick={() => switchMode('forgot')} style={{ background: 'none', border: 'none', color: '#2B7FFF', fontSize: '12px', fontWeight: 700, cursor: 'pointer', padding: 0 }}>
+                        Forgot password?
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="password"
+                      required
+                      minLength={6}
+                      className="search-input"
+                      style={{ width: '100%', paddingRight: '36px' }}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                    <Lock size={16} style={{ position: 'absolute', right: '14px', top: '12px', color: '#9CA3AF' }} />
+                  </div>
                 </div>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type="password"
-                    required
-                    minLength={6}
-                    className="search-input"
-                    style={{ width: '100%', paddingRight: '36px' }}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                  <Lock size={16} style={{ position: 'absolute', right: '14px', top: '12px', color: '#9CA3AF' }} />
-                </div>
-              </div>
+              )}
 
               {/* Role Selection - signup only, and judges are excluded (invite-only) */}
               {mode === 'signup' && (
@@ -306,9 +338,16 @@ export const LoginPage: React.FC = () => {
                   opacity: isSubmitting ? 0.7 : 1,
                 }}
               >
-                {isSubmitting ? 'Please wait…' : mode === 'signin' ? 'Sign In to Dashboard' : 'Create Account'} <ArrowRight size={18} />
+                {isSubmitting
+                  ? 'Please wait…'
+                  : mode === 'signin'
+                  ? 'Sign In to Dashboard'
+                  : mode === 'signup'
+                  ? 'Create Account'
+                  : 'Send Reset Link'} <ArrowRight size={18} />
               </button>
             </form>
+            )}
           </div>
 
           {/* Footer Links */}

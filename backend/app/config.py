@@ -75,6 +75,7 @@ class Settings:
     # Used to build the accept-invite link sent to invited judges.
     FRONTEND_BASE_URL: str = os.getenv("FRONTEND_BASE_URL", "http://localhost:5173")
     JUDGE_INVITE_EXPIRY_DAYS: int = int(os.getenv("JUDGE_INVITE_EXPIRY_DAYS", 7))
+    PASSWORD_RESET_EXPIRY_HOURS: int = int(os.getenv("PASSWORD_RESET_EXPIRY_HOURS", 2))
     # If SMTP_HOST is unset, invite emails aren't actually sent - the invite
     # link is returned directly in the API response instead (dev_invite_link)
     # so the feature works end-to-end without a real mail provider. Wiring in

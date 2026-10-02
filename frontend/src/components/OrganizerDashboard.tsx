@@ -85,8 +85,8 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
   };
 
   const exportCsv = () => {
-    const header = 'Rank,Team,TechStack,Score,PlagiarismRisk,PlagiarismPercent,Status\n';
-    const rows = leaderboard.map((e) => `${e.rank},"${e.team_name}","${e.tech_stack}",${e.score},${e.plagiarism_risk},${e.plagiarism_percentage},${e.status}`).join('\n');
+    const header = 'Rank,Team,TechStack,Score,Technical,Innovation,UIUX,Impact,PlagiarismRisk,PlagiarismPercent,Status\n';
+    const rows = leaderboard.map((e) => `${e.rank},"${e.team_name}","${e.tech_stack}",${e.score},${e.parameter_scores?.technical_complexity ?? ''},${e.parameter_scores?.innovation ?? ''},${e.parameter_scores?.ui_ux ?? ''},${e.parameter_scores?.business_impact ?? ''},${e.plagiarism_risk},${e.plagiarism_percentage},${e.status}`).join('\n');
     const blob = new Blob([header + rows], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -189,6 +189,34 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
             </tbody>
           </table>
         </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '28px 0 12px' }}>
+          <div>
+            <h4 style={{ fontSize: '16px', fontWeight: '800' }}>AI-Generated Code Detection</h4>
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              Heuristic estimate only (comment density, naming patterns, boilerplate phrasing) - not proof of AI authorship. For organizer review, not an automatic penalty.
+            </p>
+          </div>
+        </div>
+        <div className="data-table-container">
+          <table className="data-table">
+            <thead>
+              <tr><th>Team Name</th><th>Estimated AI Usage</th><th>Risk Level</th></tr>
+            </thead>
+            <tbody>
+              {leaderboard.length === 0 && (
+                <tr><td colSpan={3} style={{ color: 'var(--text-secondary)' }}>No submissions yet.</td></tr>
+              )}
+              {leaderboard.map((item) => (
+                <tr key={item.submission_id}>
+                  <td style={{ fontWeight: '700' }}>{item.team_name}</td>
+                  <td style={{ color: 'var(--text-secondary)' }}>{item.ai_code_usage_percentage != null ? `${item.ai_code_usage_percentage}%` : '—'}</td>
+                  <td><span className={`pill-badge ${item.ai_code_risk === 'HIGH' ? 'red' : item.ai_code_risk === 'MEDIUM' ? 'amber' : item.ai_code_risk === 'LOW' ? 'green' : 'blue'}`}>{item.ai_code_risk}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     );
   }
@@ -215,17 +243,21 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
         <div className="data-table-container">
           <table className="data-table">
             <thead>
-              <tr><th>Rank</th><th>Team Name</th><th>Final AI Score</th><th>Plagiarism Risk</th><th>Status</th></tr>
+              <tr><th>Rank</th><th>Team Name</th><th>Final AI Score</th><th>Technical</th><th>Innovation</th><th>UI/UX</th><th>Impact</th><th>Plagiarism Risk</th><th>Status</th></tr>
             </thead>
             <tbody>
               {leaderboard.length === 0 && (
-                <tr><td colSpan={5} style={{ color: 'var(--text-secondary)' }}>No submissions yet.</td></tr>
+                <tr><td colSpan={9} style={{ color: 'var(--text-secondary)' }}>No submissions yet.</td></tr>
               )}
               {leaderboard.map((item) => (
                 <tr key={item.submission_id}>
                   <td style={{ fontWeight: '800' }}>#{item.rank}</td>
                   <td style={{ fontWeight: '700' }}>{item.team_name}</td>
                   <td style={{ fontWeight: '800', fontSize: '15px' }}>{item.score}</td>
+                  <td style={{ color: 'var(--text-secondary)' }}>{item.parameter_scores?.technical_complexity ?? '—'}</td>
+                  <td style={{ color: 'var(--text-secondary)' }}>{item.parameter_scores?.innovation ?? '—'}</td>
+                  <td style={{ color: 'var(--text-secondary)' }}>{item.parameter_scores?.ui_ux ?? '—'}</td>
+                  <td style={{ color: 'var(--text-secondary)' }}>{item.parameter_scores?.business_impact ?? '—'}</td>
                   <td><span className={`pill-badge ${item.plagiarism_risk === 'CRITICAL' ? 'red' : 'green'}`}>{item.plagiarism_risk}</span></td>
                   <td><span className="pill-badge blue">{item.status}</span></td>
                 </tr>

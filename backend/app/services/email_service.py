@@ -35,3 +35,51 @@ def send_judge_invite_email(to_email: str, invite_link: str, hackathon_title: st
         server.send_message(message)
 
     return None
+
+
+def _send_simple_email(to_email: str, subject: str, body: str, link: str) -> Optional[str]:
+    """Shared send-or-log-link path used by both password reset and email
+    verification - same dev-fallback behavior as send_judge_invite_email,
+    factored out since neither needs the invite-specific fields. Returns
+    just the bare `link` (not the full email body) when unsent, matching
+    send_judge_invite_email's contract - the caller surfaces this as
+    dev_reset_link/dev_verify_link, which should be a usable URL, not prose."""
+    if not settings.SMTP_HOST:
+        logger.info("SMTP not configured - link for %s: %s", to_email, link)
+        return link
+
+    message = EmailMessage()
+    message["Subject"] = subject
+    message["From"] = settings.SMTP_FROM_ADDRESS
+    message["To"] = to_email
+    message.set_content(body)
+
+    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+        if settings.SMTP_USE_TLS:
+            server.starttls()
+        if settings.SMTP_USERNAME:
+            server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+        server.send_message(message)
+
+    return None
+
+
+def send_password_reset_email(to_email: str, reset_link: str) -> Optional[str]:
+    return _send_simple_email(
+        to_email,
+        "Reset your HackGuard AI password",
+        f"We received a request to reset your password.\n\n"
+        f"Reset it here: {reset_link}\n\n"
+        f"This link expires in {settings.PASSWORD_RESET_EXPIRY_HOURS} hours. "
+        f"If you didn't request this, you can safely ignore this email.",
+        link=reset_link,
+    )
+
+
+def send_verification_email(to_email: str, verify_link: str) -> Optional[str]:
+    return _send_simple_email(
+        to_email,
+        "Verify your HackGuard AI email address",
+        f"Welcome to HackGuard AI! Please verify your email address:\n\n{verify_link}",
+        link=verify_link,
+    )

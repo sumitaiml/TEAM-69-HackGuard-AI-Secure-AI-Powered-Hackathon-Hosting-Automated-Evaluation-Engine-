@@ -16,6 +16,8 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     full_name = Column(String, nullable=False)
     role = Column(String, default="participant")  # participant, organizer, judge
+    is_verified = Column(Boolean, default=False)
+    verification_token = Column(String, nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     teams_led = relationship("Team", back_populates="leader")
@@ -134,4 +136,14 @@ class AuditLog(Base):
     entity_type = Column(String, nullable=False)  # e.g. judge_invite, evaluation_report, hackathon
     entity_id = Column(String, nullable=False)
     metadata_json = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    token = Column(String, unique=True, index=True, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)

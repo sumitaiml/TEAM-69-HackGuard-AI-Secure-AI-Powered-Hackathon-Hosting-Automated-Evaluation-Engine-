@@ -110,8 +110,11 @@ export interface LeaderboardEntry {
   github_url: string | null;
   live_url: string | null;
   score: number;
+  parameter_scores: Record<string, number> | null;
   plagiarism_risk: string;
   plagiarism_percentage: number;
+  ai_code_risk: string;
+  ai_code_usage_percentage: number | null;
   status: string;
   submitted_at: string;
   rank: number;

@@ -49,7 +49,11 @@ services:
       context: ./backend
     image: hackguard-backend:local
     ports:
-      - "8000:8000"
+      # Host side moved off 8000: after a reboot Windows/Hyper-V can claim
+      # 8000 into its dynamic port-exclusion range, which blocks Docker from
+      # binding it (fix requires an elevated `net stop/start winnat`, so this
+      # avoids needing admin rights). Container still listens on 8000 internally.
+      - "8090:8000"
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/hackguard_db
       TEST_DATABASE_URL: postgresql://postgres:postgres@postgres:5432/hackguard_test
@@ -104,7 +108,7 @@ services:
       # Must stay host-reachable: this is shipped to the BROWSER, which runs
       # on the host, not inside the compose network - "api" (the service
       # name) would not resolve there.
-      VITE_API_BASE_URL: http://localhost:8000
+      VITE_API_BASE_URL: http://localhost:8090
     volumes:
       - ./frontend:/app
       - /app/node_modules

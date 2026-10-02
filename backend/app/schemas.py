@@ -32,7 +32,14 @@ class UserOut(BaseModel):
     email: str
     full_name: str
     role: str
+    is_verified: bool
     created_at: datetime
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    new_password: str = Field(..., min_length=6)
 
 class Token(BaseModel):
     access_token: str

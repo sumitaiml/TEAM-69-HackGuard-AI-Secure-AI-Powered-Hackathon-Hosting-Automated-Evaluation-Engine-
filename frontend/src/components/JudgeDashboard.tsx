@@ -253,6 +253,7 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
       const staticReport = report.static_analysis_json;
       const tools: string[] = staticReport?.tools_executed || [];
       const vulns: any[] = staticReport?.security_vulnerabilities || [];
+      const aiDetection = staticReport?.ai_generated_code_detection;
       return (
         <div>
           <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
@@ -266,6 +267,16 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
               {vulns.map((v, i) => <li key={i}><strong>{v.tool}</strong> [{v.severity}] {v.message} ({v.path}:{v.line})</li>)}
             </ul>
           )}
+          {aiDetection?.status === 'completed' && (
+            <div style={{ marginTop: '16px', background: '#F9FAFB', borderRadius: '12px', padding: '12px 16px' }}>
+              <div style={{ fontWeight: '800', fontSize: '13px', marginBottom: '4px' }}>
+                AI-Generated Code Detection: <span className={`pill-badge ${aiDetection.risk_level === 'HIGH' ? 'red' : aiDetection.risk_level === 'MEDIUM' ? 'amber' : 'green'}`}>{aiDetection.risk_level}</span>
+              </div>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                Estimated {aiDetection.estimated_ai_usage_percentage}% likelihood (confidence {Math.round((aiDetection.confidence ?? 0) * 100)}%) - heuristic signal from comment density, naming patterns, and boilerplate phrasing, not proof.
+              </p>
+            </div>
+          )}
         </div>
       );
     }
@@ -274,8 +285,19 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
       const sandbox = report.static_analysis_json?.sandbox_execution;
       const logs: string[] = sandbox?.execution_logs || [];
       return (
-        <div style={{ background: '#1E1F24', color: '#10B981', padding: '16px', borderRadius: '16px', fontFamily: 'monospace', fontSize: '12px', lineHeight: '1.6', maxHeight: '260px', overflowY: 'auto' }}>
-          {logs.length === 0 ? <div>{sandbox?.reason || 'No sandbox execution recorded.'}</div> : logs.map((l, i) => <div key={i}>{l}</div>)}
+        <div>
+          {sandbox?.status === 'completed' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px', marginBottom: '12px' }}>
+              <MiniStat label="Build" value={sandbox.build_status} />
+              <MiniStat label="Tests Passed" value={`${sandbox.unit_tests_passed ?? 0}`} />
+              <MiniStat label="Tests Failed" value={`${sandbox.unit_tests_failed ?? 0}`} />
+              <MiniStat label="Peak Memory" value={`${sandbox.peak_memory_mb ?? 0} MB`} />
+              <MiniStat label="Avg CPU" value={`${sandbox.avg_cpu_percent ?? 0}%`} />
+            </div>
+          )}
+          <div style={{ background: '#1E1F24', color: '#10B981', padding: '16px', borderRadius: '16px', fontFamily: 'monospace', fontSize: '12px', lineHeight: '1.6', maxHeight: '260px', overflowY: 'auto' }}>
+            {logs.length === 0 ? <div>{sandbox?.reason || 'No sandbox execution recorded.'}</div> : logs.map((l, i) => <div key={i}>{l}</div>)}
+          </div>
         </div>
       );
     }
@@ -291,6 +313,13 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
     );
   }
 };
+
+const MiniStat: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+  <div style={{ background: '#F9FAFB', borderRadius: '10px', padding: '8px 10px', textAlign: 'center' }}>
+    <div style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{label}</div>
+    <div style={{ fontSize: '14px', fontWeight: '800', color: '#111827' }}>{value}</div>
+  </div>
+);
 
 function formatLabel(key: string): string {
   return key.split('_').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');

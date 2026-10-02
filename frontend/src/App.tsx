@@ -7,6 +7,8 @@ import { OrganizerDashboard } from './components/OrganizerDashboard';
 import { JudgeDashboard } from './components/JudgeDashboard';
 import { LoginPage } from './components/LoginPage';
 import { AcceptInvitePage } from './components/AcceptInvitePage';
+import { ResetPasswordPage } from './components/ResetPasswordPage';
+import { VerifyEmailPage } from './components/VerifyEmailPage';
 import { useAuth } from './context/AuthContext';
 import { api } from './lib/apiClient';
 import type { HackathonItem } from './lib/types';
@@ -138,6 +140,8 @@ export function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/accept-invite" element={<AcceptInvitePage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route
         path="/*"
         element={

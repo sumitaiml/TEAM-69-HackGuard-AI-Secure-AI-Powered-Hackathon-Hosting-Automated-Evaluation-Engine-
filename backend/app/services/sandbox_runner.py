@@ -1,12 +1,55 @@
 import subprocess
+import threading
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import docker
 from docker.errors import NotFound
 
 from app.config import settings
 from app.services.sandbox_profiles import detect_profile
+
+
+def _sample_container_stats(container, samples: List[dict], stop_event: threading.Event, interval: float = 0.5) -> None:
+    """Runs in a background thread for the lifetime of one container, since
+    `docker stats` only reports meaningful (non-zero) usage for a container
+    that is still running - polling once after `wait()` returns would just
+    see an already-exited container. Stops silently on any error (container
+    removed/exited mid-sample is the expected end condition, not a bug)."""
+    while not stop_event.is_set():
+        try:
+            samples.append(container.stats(stream=False))
+        except Exception:
+            break
+        stop_event.wait(interval)
+
+
+def _compute_resource_usage(samples: List[dict]) -> Dict[str, float]:
+    """Module 9: CPU Usage, Memory Usage - derived from sampled `docker stats`
+    snapshots. CPU percent uses Docker's own standard formula (delta of
+    container CPU usage over delta of system CPU usage, scaled by online
+    CPU count) since the API only reports cumulative counters, not a
+    ready-made percentage."""
+    peak_memory_mb = 0.0
+    cpu_percentages: List[float] = []
+    for stats in samples:
+        try:
+            peak_memory_mb = max(peak_memory_mb, stats["memory_stats"]["usage"] / (1024 * 1024))
+        except (KeyError, TypeError):
+            pass
+        try:
+            cpu, precpu = stats["cpu_stats"], stats["precpu_stats"]
+            cpu_delta = cpu["cpu_usage"]["total_usage"] - precpu["cpu_usage"]["total_usage"]
+            system_delta = cpu["system_cpu_usage"] - precpu.get("system_cpu_usage", 0)
+            online_cpus = cpu.get("online_cpus") or len(cpu["cpu_usage"].get("percpu_usage") or [1])
+            if system_delta > 0 and cpu_delta > 0:
+                cpu_percentages.append((cpu_delta / system_delta) * online_cpus * 100.0)
+        except (KeyError, TypeError):
+            pass
+    return {
+        "peak_memory_mb": round(peak_memory_mb, 2),
+        "avg_cpu_percent": round(sum(cpu_percentages) / len(cpu_percentages), 2) if cpu_percentages else 0.0,
+    }
 
 
 def _get_client():
@@ -73,9 +116,16 @@ def _run_phase(
     exit_code = -1
     logs = ""
     error: Optional[str] = None
+    stats_samples: List[dict] = []
+    stop_sampling = threading.Event()
+    sampler_thread: Optional[threading.Thread] = None
 
     try:
         container = client.containers.run(**run_kwargs)
+        sampler_thread = threading.Thread(
+            target=_sample_container_stats, args=(container, stats_samples, stop_sampling), daemon=True
+        )
+        sampler_thread.start()
         try:
             result = container.wait(timeout=timeout)
             exit_code = result.get("StatusCode", -1)
@@ -97,6 +147,9 @@ def _run_phase(
     except Exception as e:
         error = str(e)
     finally:
+        stop_sampling.set()
+        if sampler_thread is not None:
+            sampler_thread.join(timeout=2)
         if container is not None:
             try:
                 container.remove(force=True)
@@ -109,6 +162,7 @@ def _run_phase(
         "elapsed_seconds": round(time.time() - start, 2),
         "timed_out": timed_out,
         "error": error,
+        **_compute_resource_usage(stats_samples),
     }
 
 
@@ -168,6 +222,8 @@ def execute_in_docker_sandbox(submission_id: str, source_dir: Optional[str]) -> 
             "execution_time_seconds": install["elapsed_seconds"],
             "execution_logs": execution_logs,
             "error": install["error"] or f"install exited with code {install['exit_code']}",
+            "peak_memory_mb": install["peak_memory_mb"],
+            "avg_cpu_percent": install["avg_cpu_percent"],
         }
 
     execution_logs.append(f"[TEST] Run: {' '.join(profile['run_cmd'])}")
@@ -191,4 +247,9 @@ def execute_in_docker_sandbox(submission_id: str, source_dir: Optional[str]) -> 
         "execution_time_seconds": round(install["elapsed_seconds"] + run["elapsed_seconds"], 2),
         "execution_logs": execution_logs,
         "error": run["error"],
+        # Module 9: measured from the test/run phase specifically (not install)
+        # since that's the actual "Execute Application" step the PRD means by
+        # these metrics - peak memory and average CPU% sampled while it ran.
+        "peak_memory_mb": run["peak_memory_mb"],
+        "avg_cpu_percent": run["avg_cpu_percent"],
     }

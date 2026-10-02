@@ -5,6 +5,7 @@ from app import database, models
 from app.services.source_fetch import extract_submission_source
 from app.services.static_analysis import run_static_code_analysis
 from app.services.plagiarism_engine import run_plagiarism_check
+from app.services.ai_code_detection import run_ai_code_detection_check
 from app.services.sandbox_runner import execute_in_docker_sandbox
 from app.services.whisper_engine import generate_whisper_transcript
 from app.services.ppt_engine import analyze_ppt_presentation
@@ -36,6 +37,7 @@ def run_full_evaluation_task(self, submission_id: str):
 
             self.update_state(state="PROGRESS", meta={"stage": "static_analysis"})
             static_report = run_static_code_analysis(source_dir)
+            static_report["ai_generated_code_detection"] = run_ai_code_detection_check(source_dir)
 
             self.update_state(state="PROGRESS", meta={"stage": "plagiarism_check"})
             plagiarism_report = run_plagiarism_check(db, sub, source_dir)
