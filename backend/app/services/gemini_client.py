@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import List, Type, TypeVar
 
 from google import genai
 from google.genai import errors as genai_errors
@@ -10,6 +10,8 @@ from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponen
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T", bound=BaseModel)
 
 
 class GeminiScoreResponse(BaseModel):
@@ -82,37 +84,40 @@ Also provide:
     stop=stop_after_attempt(4),
     reraise=True,
 )
-def _call_model(client: "genai.Client", model_name: str, prompt: str) -> str:
+def _call_model(client: "genai.Client", model_name: str, prompt: str, response_schema: Type[BaseModel]) -> str:
     response = client.models.generate_content(
         model=model_name,
         contents=prompt,
         config=types.GenerateContentConfig(
             temperature=0.1,
             response_mime_type="application/json",
-            response_schema=GeminiScoreResponse,
+            response_schema=response_schema,
         ),
     )
     return response.text
 
 
-def score_submission(readme_text: str, ppt_slides_text: str, transcript: str, tech_stack: str) -> GeminiScoreResponse:
-    """Raises on total failure across every model candidate - the caller
-    (ai_evaluation.py) is responsible for the degraded-mode fallback so a
-    Gemini outage doesn't fail the whole evaluation."""
+def call_structured_gemini(prompt: str, response_schema: Type[T]) -> T:
+    """Generic single-shot structured-output call: one prompt in, one
+    Pydantic-validated response out, with model-fallback and a one-time
+    repair retry on schema-invalid output. This is the shared scaffolding
+    behind score_submission() below and every agent built on top of it
+    (timeline_agent.py, etc.) - raises on total failure across every model
+    candidate, so callers are responsible for their own degraded-mode
+    fallback rather than this function silently swallowing errors."""
     client = genai.Client(api_key=settings.GEMINI_API_KEY)
-    prompt = _build_prompt(readme_text, ppt_slides_text, transcript, tech_stack)
 
     last_error: Exception = RuntimeError("No Gemini model candidates configured")
     for model_name in _model_candidates():
         try:
-            raw = _call_model(client, model_name, prompt)
+            raw = _call_model(client, model_name, prompt, response_schema)
         except Exception as e:
             logger.warning("Gemini model %s failed: %s", model_name, e)
             last_error = e
             continue
 
         try:
-            return GeminiScoreResponse.model_validate_json(raw)
+            return response_schema.model_validate_json(raw)
         except Exception as validation_error:
             # One repair retry: ask the same model to fix its own output
             # before giving up on it and moving to the next candidate.
@@ -122,11 +127,19 @@ def score_submission(readme_text: str, ppt_slides_text: str, transcript: str, te
                     "Your previous response was not valid JSON matching the required schema. "
                     f"Fix it and return ONLY the corrected JSON.\n\nPrevious response:\n{raw}"
                 )
-                repaired = _call_model(client, model_name, repair_prompt)
-                return GeminiScoreResponse.model_validate_json(repaired)
+                repaired = _call_model(client, model_name, repair_prompt, response_schema)
+                return response_schema.model_validate_json(repaired)
             except Exception as e:
                 logger.warning("Gemini model %s repair attempt also failed: %s", model_name, e)
                 last_error = e
                 continue
 
     raise RuntimeError(f"All Gemini model candidates failed: {last_error}") from last_error
+
+
+def score_submission(readme_text: str, ppt_slides_text: str, transcript: str, tech_stack: str) -> GeminiScoreResponse:
+    """Raises on total failure across every model candidate - the caller
+    (ai_evaluation.py) is responsible for the degraded-mode fallback so a
+    Gemini outage doesn't fail the whole evaluation."""
+    prompt = _build_prompt(readme_text, ppt_slides_text, transcript, tech_stack)
+    return call_structured_gemini(prompt, GeminiScoreResponse)

@@ -16,7 +16,7 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     full_name = Column(String, nullable=False)
     role = Column(String, default="participant")  # participant, organizer, judge
-    is_verified = Column(Boolean, default=False)
+    is_verified = Column(Boolean, nullable=False, default=False)
     verification_token = Column(String, nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
@@ -76,6 +76,10 @@ class Submission(Base):
     live_url = Column(String, nullable=True)
     status = Column(String, default="submitted") # submitted, evaluating, completed, failed
     upload_metadata_json = Column(JSON, nullable=True)  # original filenames/sizes/video duration
+    # Commit-timeline anti-cheating check (timeline_agent.py) - a property of
+    # the submission's provenance, checked once per evaluation run, not a
+    # per-report concern like static_analysis_json/ai_scores_json are.
+    timeline_risk_json = Column(JSON, nullable=True)
     submitted_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     team = relationship("Team", back_populates="submissions")

@@ -217,6 +217,34 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
             </tbody>
           </table>
         </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '28px 0 12px' }}>
+          <div>
+            <h4 style={{ fontSize: '16px', fontWeight: '800' }}>Submission Timeline Check</h4>
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              Flags repos whose commit history predates the hackathon start (or an unusually large first commit) - catches a pre-built project submitted as new, which plagiarism matching alone can't. For organizer review, not an automatic penalty.
+            </p>
+          </div>
+        </div>
+        <div className="data-table-container">
+          <table className="data-table">
+            <thead>
+              <tr><th>Team Name</th><th>Risk Level</th><th>Reasoning</th></tr>
+            </thead>
+            <tbody>
+              {leaderboard.length === 0 && (
+                <tr><td colSpan={3} style={{ color: 'var(--text-secondary)' }}>No submissions yet.</td></tr>
+              )}
+              {leaderboard.map((item) => (
+                <tr key={item.submission_id}>
+                  <td style={{ fontWeight: '700' }}>{item.team_name}</td>
+                  <td><span className={`pill-badge ${item.timeline_risk_level === 'HIGH' ? 'red' : item.timeline_risk_level === 'MEDIUM' ? 'amber' : 'green'}`}>{item.timeline_risk_level}</span></td>
+                  <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{item.timeline_reasoning || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     );
   }

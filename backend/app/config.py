@@ -76,6 +76,11 @@ class Settings:
     FRONTEND_BASE_URL: str = os.getenv("FRONTEND_BASE_URL", "http://localhost:5173")
     JUDGE_INVITE_EXPIRY_DAYS: int = int(os.getenv("JUDGE_INVITE_EXPIRY_DAYS", 7))
     PASSWORD_RESET_EXPIRY_HOURS: int = int(os.getenv("PASSWORD_RESET_EXPIRY_HOURS", 2))
+
+    # 12. Agentic evaluation modules (see AI_Agents_Implementation_Plan.md) -
+    # each independently feature-flagged so one can be disabled without
+    # touching the others or the core deterministic pipeline.
+    ENABLE_TIMELINE_AGENT: bool = os.getenv("ENABLE_TIMELINE_AGENT", "true").lower() == "true"
     # If SMTP_HOST is unset, invite emails aren't actually sent - the invite
     # link is returned directly in the API response instead (dev_invite_link)
     # so the feature works end-to-end without a real mail provider. Wiring in

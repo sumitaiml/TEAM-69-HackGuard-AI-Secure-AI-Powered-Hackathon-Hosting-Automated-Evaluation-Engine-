@@ -62,6 +62,7 @@ export interface Submission {
   live_url: string | null;
   status: string;
   upload_metadata_json: Record<string, UploadMetadataEntry> | null;
+  timeline_risk_json: { status: string; risk_level: string; reasoning: string; suspicious_commits: string[] } | null;
   submitted_at: string;
 }
 
@@ -115,6 +116,8 @@ export interface LeaderboardEntry {
   plagiarism_percentage: number;
   ai_code_risk: string;
   ai_code_usage_percentage: number | null;
+  timeline_risk_level: string;
+  timeline_reasoning: string;
   status: string;
   submitted_at: string;
   rank: number;

@@ -121,6 +121,7 @@ class SubmissionOut(BaseModel):
     live_url: Optional[str]
     status: str
     upload_metadata_json: Optional[Dict[str, Any]] = None
+    timeline_risk_json: Optional[Dict[str, Any]] = None
     submitted_at: datetime
 
 # --- Evaluation Schemas ---

@@ -6,6 +6,7 @@ from app.services.source_fetch import extract_submission_source
 from app.services.static_analysis import run_static_code_analysis
 from app.services.plagiarism_engine import run_plagiarism_check
 from app.services.ai_code_detection import run_ai_code_detection_check
+from app.services.timeline_agent import run_timeline_risk_check
 from app.services.sandbox_runner import execute_in_docker_sandbox
 from app.services.whisper_engine import generate_whisper_transcript
 from app.services.ppt_engine import analyze_ppt_presentation
@@ -41,6 +42,9 @@ def run_full_evaluation_task(self, submission_id: str):
 
             self.update_state(state="PROGRESS", meta={"stage": "plagiarism_check"})
             plagiarism_report = run_plagiarism_check(db, sub, source_dir)
+
+            self.update_state(state="PROGRESS", meta={"stage": "timeline_check"})
+            sub.timeline_risk_json = run_timeline_risk_check(sub, hackathon.start_date if hackathon else None)
 
             self.update_state(state="PROGRESS", meta={"stage": "sandbox_execution"})
             sandbox_report = execute_in_docker_sandbox(submission_id=sub.id, source_dir=source_dir)
