@@ -87,7 +87,7 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
   // ---- 1. Team Management View ----
   if (activeTab === 'team') {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div key={activeTab} className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         {team ? (
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -165,7 +165,7 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
   // ---- 2. Project Submission View ----
   if (activeTab === 'submit') {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div key={activeTab} className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <div>
@@ -237,7 +237,7 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
   if (activeTab === 'report') {
     const scores = own.scores;
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div key={activeTab} className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <div>
@@ -327,7 +327,7 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
   // ---- 4. Live Leaderboard View ----
   if (activeTab === 'leaderboard') {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div key={activeTab} className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <div>
@@ -345,7 +345,7 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
 
   // ---- 5. Default Overview View ----
   return (
-    <div>
+    <div key={activeTab} className="animate-fade-in">
       <div style={{ marginBottom: '16px' }}>
         <HackathonPicker hackathons={hackathons} selectedId={selectedHackathonId} onChange={setSelectedHackathonId} />
       </div>

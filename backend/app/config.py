@@ -76,6 +76,8 @@ class Settings:
     FRONTEND_BASE_URL: str = os.getenv("FRONTEND_BASE_URL", "http://localhost:5173")
     JUDGE_INVITE_EXPIRY_DAYS: int = int(os.getenv("JUDGE_INVITE_EXPIRY_DAYS", 7))
     PASSWORD_RESET_EXPIRY_HOURS: int = int(os.getenv("PASSWORD_RESET_EXPIRY_HOURS", 2))
+    MAX_JUDGE_INVITE_CSV_SIZE_MB: int = int(os.getenv("MAX_JUDGE_INVITE_CSV_SIZE_MB", 1))
+    MAX_JUDGE_INVITE_CSV_ROWS: int = int(os.getenv("MAX_JUDGE_INVITE_CSV_ROWS", 500))
 
     # 12. Agentic evaluation modules (see AI_Agents_Implementation_Plan.md) -
     # each independently feature-flagged so one can be disabled without

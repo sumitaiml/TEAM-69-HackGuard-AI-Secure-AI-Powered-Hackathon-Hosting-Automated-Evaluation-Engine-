@@ -80,7 +80,7 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
   // ---- 1. Full AI Report Audit View ----
   if (activeTab === 'report') {
     return (
-      <div className="card">
+      <div key={activeTab} className="card animate-fade-in">
         <ReportHeader hackathons={hackathons} selectedHackathonId={selectedHackathonId} setSelectedHackathonId={setSelectedHackathonId} queue={queue} selectedSubmissionId={selectedSubmissionId} setSelectedSubmissionId={setSelectedSubmissionId} />
         <div className="tabs-header">
           <button className={`tab-btn ${activeReportTab === 'ai' ? 'active' : ''}`} onClick={() => setActiveReportTab('ai')}>🤖 AI Summary</button>
@@ -88,7 +88,7 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
           <button className={`tab-btn ${activeReportTab === 'docker' ? 'active' : ''}`} onClick={() => setActiveReportTab('docker')}>🐳 Docker Sandbox Logs</button>
           <button className={`tab-btn ${activeReportTab === 'video' ? 'active' : ''}`} onClick={() => setActiveReportTab('video')}>🎥 Video Transcript (Whisper)</button>
         </div>
-        {renderTabContent()}
+        <div key={activeReportTab} className="animate-fade-in">{renderTabContent()}</div>
       </div>
     );
   }
@@ -96,7 +96,7 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
   // ---- 2. Score Override Console View ----
   if (activeTab === 'override') {
     return (
-      <div className="card">
+      <div key={activeTab} className="card animate-fade-in">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
           <div>
             <h3 style={{ fontSize: '20px', fontWeight: '800' }}>Manual Score Override Console</h3>
@@ -145,7 +145,7 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
   const pendingCount = queue.filter((q) => q.status !== 'completed').length;
 
   return (
-    <div>
+    <div key={activeTab} className="animate-fade-in">
       <div className="metrics-row">
         <MetricCard
           label="Submissions in Queue"
@@ -194,7 +194,7 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
             <button className={`tab-btn ${activeReportTab === 'docker' ? 'active' : ''}`} onClick={() => setActiveReportTab('docker')}>🐳 Docker Sandbox Logs</button>
             <button className={`tab-btn ${activeReportTab === 'video' ? 'active' : ''}`} onClick={() => setActiveReportTab('video')}>🎥 Video Transcript (Whisper)</button>
           </div>
-          {renderTabContent()}
+          <div key={activeReportTab} className="animate-fade-in">{renderTabContent()}</div>
         </div>
 
         <div className="card">

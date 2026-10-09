@@ -1,3 +1,5 @@
+import io
+
 import pytest
 
 from app import models
@@ -122,3 +124,99 @@ def test_rubric_update_writes_audit_log(client, db_session):
     entries = db_session.query(models.AuditLog).filter(models.AuditLog.action == "rubric_updated").all()
     assert len(entries) == 1
     assert entries[0].entity_id == hack_id
+
+
+def _csv_file(content: str):
+    return ("judges.csv", io.BytesIO(content.encode("utf-8")), "text/csv")
+
+
+def test_csv_judge_invite_bulk_upload(client, db_session):
+    org_headers, hack_id = _create_org_and_hackathon(client, "csv_org@hackeval.ai", "CSV Invite Event")
+
+    # Pre-existing account - should be skipped, not invited
+    _register(client, "already_user@hackeval.ai", "Already A User", role="participant")
+
+    csv_content = (
+        "name,email\n"
+        "Alice Judge,alice_judge@hackeval.ai\n"
+        "Bob Judge,BOB_JUDGE@hackeval.ai\n"
+        "Bob Judge Again,bob_judge@hackeval.ai\n"  # duplicate of the row above (case-insensitive)
+        "Not An Email,not-an-email\n"
+        "Existing User,already_user@hackeval.ai\n"
+    )
+
+    res = client.post(
+        f"/api/hackathons/{hack_id}/invite-judges-csv",
+        files={"file": _csv_file(csv_content)},
+        headers=org_headers,
+    )
+    assert res.status_code == 200
+    data = res.json()
+
+    assert data["total_rows"] == 5
+    assert data["invited_count"] == 2
+    assert data["skipped_count"] == 3
+
+    invited_emails = {row["email"] for row in data["invited"]}
+    assert invited_emails == {"alice_judge@hackeval.ai", "bob_judge@hackeval.ai"}
+    for row in data["invited"]:
+        assert "dev_invite_link" in row  # no SMTP configured in tests
+
+    skipped_reasons = {row["email"]: row["reason"] for row in data["skipped"]}
+    assert skipped_reasons["bob_judge@hackeval.ai"] == "duplicate row in this file"
+    assert skipped_reasons["not-an-email"] == "invalid email format"
+    assert skipped_reasons["already_user@hackeval.ai"] == "a user with this email already has an account"
+
+    invites = db_session.query(models.JudgeInvite).filter(models.JudgeInvite.hackathon_id == hack_id).all()
+    assert len(invites) == 2
+
+    created_count = db_session.query(models.AuditLog).filter(
+        models.AuditLog.action == "judge_invite_created"
+    ).count()
+    assert created_count == 2
+
+    # Re-uploading the same file should skip the now-pending invites rather than duplicating them
+    res2 = client.post(
+        f"/api/hackathons/{hack_id}/invite-judges-csv",
+        files={"file": _csv_file(csv_content)},
+        headers=org_headers,
+    )
+    assert res2.status_code == 200
+    data2 = res2.json()
+    assert data2["invited_count"] == 0
+    assert data2["skipped_count"] == 5
+    reasons2 = {row["reason"] for row in data2["skipped"]}
+    assert "a pending invite already exists for this email" in reasons2
+
+
+def test_csv_judge_invite_rejects_non_csv_and_missing_column(client):
+    org_headers, hack_id = _create_org_and_hackathon(client, "csv_badinput_org@hackeval.ai", "CSV Bad Input Event")
+
+    bad_ext_res = client.post(
+        f"/api/hackathons/{hack_id}/invite-judges-csv",
+        files={"file": ("judges.txt", io.BytesIO(b"email\nfoo@hackeval.ai\n"), "text/plain")},
+        headers=org_headers,
+    )
+    assert bad_ext_res.status_code == 400
+    assert "must be a .csv" in bad_ext_res.json()["detail"]
+
+    no_email_col_res = client.post(
+        f"/api/hackathons/{hack_id}/invite-judges-csv",
+        files={"file": _csv_file("name,phone\nAlice,555-1234\n")},
+        headers=org_headers,
+    )
+    assert no_email_col_res.status_code == 400
+    assert "email" in no_email_col_res.json()["detail"]
+
+
+def test_csv_judge_invite_requires_organizer_role(client):
+    participant_res = _register(client, "csv_participant@hackeval.ai", "Just A Participant", role="participant")
+    participant_headers = {"Authorization": f"Bearer {participant_res.json()['access_token']}"}
+    org_headers, hack_id = _create_org_and_hackathon(client, "csv_perm_org@hackeval.ai", "CSV Perm Event")
+
+    res = client.post(
+        f"/api/hackathons/{hack_id}/invite-judges-csv",
+        files={"file": _csv_file("email\nsomeone@hackeval.ai\n")},
+        headers=participant_headers,
+    )
+    assert res.status_code == 403

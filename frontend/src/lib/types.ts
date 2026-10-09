@@ -157,6 +157,14 @@ export interface JudgeInviteOut {
   dev_invite_link?: string;
 }
 
+export interface JudgeInviteCsvResult {
+  total_rows: number;
+  invited_count: number;
+  skipped_count: number;
+  invited: { email: string; dev_invite_link?: string }[];
+  skipped: { email: string; reason: string }[];
+}
+
 export interface InviteDetails {
   email: string;
   hackathon_id: string;

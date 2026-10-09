@@ -153,6 +153,21 @@ class JudgeInviteOut(BaseModel):
     expires_at: datetime
     created_at: datetime
 
+class JudgeInviteCsvRow(BaseModel):
+    email: str
+    dev_invite_link: Optional[str] = None
+
+class JudgeInviteCsvSkip(BaseModel):
+    email: str
+    reason: str
+
+class JudgeInviteCsvResult(BaseModel):
+    total_rows: int
+    invited_count: int
+    skipped_count: int
+    invited: List[JudgeInviteCsvRow]
+    skipped: List[JudgeInviteCsvSkip]
+
 class InviteDetailsOut(BaseModel):
     email: str
     hackathon_id: str
