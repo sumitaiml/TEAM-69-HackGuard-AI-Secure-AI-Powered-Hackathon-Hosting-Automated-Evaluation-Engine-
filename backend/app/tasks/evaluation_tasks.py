@@ -66,7 +66,7 @@ def run_full_evaluation_task(self, submission_id: str):
 
             self.update_state(state="PROGRESS", meta={"stage": "media_analysis"})
             whisper_report = generate_whisper_transcript(sub.video_path)
-            ppt_report = analyze_ppt_presentation(sub.ppt_path)
+            ppt_report = analyze_ppt_presentation(sub.ppt_path, sub.id)
 
             self.update_state(state="PROGRESS", meta={"stage": "ai_scoring"})
             ai_evaluation = evaluate_project_with_ai(

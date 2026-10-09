@@ -1,5 +1,5 @@
 import logging
-from typing import Callable, List, Optional, Type, TypeVar
+from typing import Any, Callable, List, Optional, Type, TypeVar, Union
 
 from google import genai
 from google.genai import errors as genai_errors
@@ -87,7 +87,7 @@ Also provide:
 def _call_model(
     client: "genai.Client",
     model_name: str,
-    prompt: str,
+    prompt: Union[str, List[Any]],
     response_schema: Type[BaseModel],
     tools: Optional[List[Callable]] = None,
 ) -> str:
@@ -115,10 +115,13 @@ def _call_model(
     return response.text
 
 
-def call_structured_gemini(prompt: str, response_schema: Type[T], tools: Optional[List[Callable]] = None) -> T:
+def call_structured_gemini(prompt: Union[str, List[Any]], response_schema: Type[T], tools: Optional[List[Callable]] = None) -> T:
     """Generic structured-output call: one prompt in, one Pydantic-validated
     response out, with model-fallback and a one-time repair retry on
-    schema-invalid output. This is the shared scaffolding behind
+    schema-invalid output. `prompt` can be a plain string or a list mixing
+    text and types.Part.from_bytes(...) image parts for multimodal input
+    (pitch_deck_agent.py) - google-genai's generate_content() `contents`
+    argument accepts either natively. This is the shared scaffolding behind
     score_submission() below and every agent built on top of it - raises on
     total failure across every model candidate, so callers are responsible
     for their own degraded-mode fallback rather than this function silently

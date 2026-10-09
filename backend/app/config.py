@@ -86,6 +86,7 @@ class Settings:
     # Hard cap on tool calls per agentic Gemini call - bounds cost/latency
     # for any agent using call_structured_gemini(tools=...).
     AGENT_MAX_TOOL_CALLS: int = int(os.getenv("AGENT_MAX_TOOL_CALLS", 10))
+    ENABLE_PITCH_DECK_AGENT: bool = os.getenv("ENABLE_PITCH_DECK_AGENT", "true").lower() == "true"
     # If SMTP_HOST is unset, invite emails aren't actually sent - the invite
     # link is returned directly in the API response instead (dev_invite_link)
     # so the feature works end-to-end without a real mail provider. Wiring in

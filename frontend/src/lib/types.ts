@@ -84,6 +84,13 @@ export interface AiScores {
     slides?: { slide_number: number; text: string; has_image: boolean }[];
     reason?: string;
   };
+  pitch_deck_analysis?: {
+    status: string;
+    slides: { slide_number: number; narrative_role: string; clarity_score: number; notes: string }[];
+    missing_narrative_elements: string[];
+    overall_narrative_score: number;
+    slides_inspected_visually?: number[];
+  };
 }
 
 export interface EvaluationReport {

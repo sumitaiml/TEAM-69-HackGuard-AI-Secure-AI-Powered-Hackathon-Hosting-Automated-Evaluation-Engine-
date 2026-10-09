@@ -289,6 +289,37 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
             </div>
           )}
         </div>
+
+        {report?.ai_scores_json?.pitch_deck_analysis?.status === 'completed' && (
+          <div className="card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h4 style={{ fontSize: '15px', fontWeight: '700' }}>Pitch Deck Breakdown</h4>
+              <span className="pill-badge blue">{Math.round(report.ai_scores_json.pitch_deck_analysis.overall_narrative_score)}/100 narrative</span>
+            </div>
+            <div className="data-table-container">
+              <table className="data-table">
+                <thead>
+                  <tr><th>Slide</th><th>Role</th><th>Clarity</th><th>Notes</th></tr>
+                </thead>
+                <tbody>
+                  {report.ai_scores_json.pitch_deck_analysis.slides.map((s) => (
+                    <tr key={s.slide_number}>
+                      <td style={{ fontWeight: '700' }}>#{s.slide_number}</td>
+                      <td><span className="pill-badge blue">{s.narrative_role}</span></td>
+                      <td>{Math.round(s.clarity_score)}%</td>
+                      <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{s.notes}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {report.ai_scores_json.pitch_deck_analysis.missing_narrative_elements.length > 0 && (
+              <p style={{ fontSize: '12px', color: '#B45309', marginTop: '10px' }}>
+                Missing: {report.ai_scores_json.pitch_deck_analysis.missing_narrative_elements.join(', ')}
+              </p>
+            )}
+          </div>
+        )}
       </div>
     );
   }

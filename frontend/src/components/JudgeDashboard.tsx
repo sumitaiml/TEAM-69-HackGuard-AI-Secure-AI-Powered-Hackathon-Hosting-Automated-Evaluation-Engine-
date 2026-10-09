@@ -275,6 +275,26 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
               )}
             </div>
           )}
+          {scores?.pitch_deck_analysis?.status === 'completed' && (
+            <div style={{ background: '#F9FAFB', padding: '16px', borderRadius: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <h4 style={{ fontSize: '14px', fontWeight: '800' }}>Pitch Deck Breakdown</h4>
+                <span className="pill-badge blue">{Math.round(scores.pitch_deck_analysis.overall_narrative_score)}/100 narrative</span>
+              </div>
+              <ul style={{ paddingLeft: '20px', fontSize: '12px', lineHeight: '1.6', color: '#374151' }}>
+                {scores.pitch_deck_analysis.slides.map((s) => (
+                  <li key={s.slide_number}>
+                    Slide #{s.slide_number} <span className="pill-badge blue">{s.narrative_role}</span> {Math.round(s.clarity_score)}% clarity — <span style={{ color: 'var(--text-secondary)' }}>{s.notes}</span>
+                  </li>
+                ))}
+              </ul>
+              {scores.pitch_deck_analysis.missing_narrative_elements.length > 0 && (
+                <p style={{ fontSize: '12px', color: '#B45309', marginTop: '8px' }}>
+                  Missing: {scores.pitch_deck_analysis.missing_narrative_elements.join(', ')}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       );
     }
