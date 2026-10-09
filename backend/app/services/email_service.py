@@ -27,12 +27,20 @@ def send_judge_invite_email(to_email: str, invite_link: str, hackathon_title: st
         f"This link expires in {settings.JUDGE_INVITE_EXPIRY_DAYS} days."
     )
 
-    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-        if settings.SMTP_USE_TLS:
-            server.starttls()
-        if settings.SMTP_USERNAME:
-            server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
-        server.send_message(message)
+    try:
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+            if settings.SMTP_USE_TLS:
+                server.starttls()
+            if settings.SMTP_USERNAME:
+                server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+            server.send_message(message)
+    except (smtplib.SMTPException, OSError) as e:
+        # A bad password, an unreachable host, a provider outage - none of
+        # these should take down judge invites entirely. Degrade the same
+        # way as "SMTP not configured": log it and hand the link back
+        # directly so the feature still works end-to-end.
+        logger.error("SMTP send failed for %s, falling back to direct link: %s", to_email, e)
+        return invite_link
 
     return None
 
@@ -54,12 +62,16 @@ def _send_simple_email(to_email: str, subject: str, body: str, link: str) -> Opt
     message["To"] = to_email
     message.set_content(body)
 
-    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-        if settings.SMTP_USE_TLS:
-            server.starttls()
-        if settings.SMTP_USERNAME:
-            server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
-        server.send_message(message)
+    try:
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+            if settings.SMTP_USE_TLS:
+                server.starttls()
+            if settings.SMTP_USERNAME:
+                server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+            server.send_message(message)
+    except (smtplib.SMTPException, OSError) as e:
+        logger.error("SMTP send failed for %s, falling back to direct link: %s", to_email, e)
+        return link
 
     return None
 
