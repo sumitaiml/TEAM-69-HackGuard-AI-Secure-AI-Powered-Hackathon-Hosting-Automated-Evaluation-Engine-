@@ -48,8 +48,8 @@ export const AcceptInvitePage: React.FC = () => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--canvas-bg)', padding: '24px' }}>
-      <div style={{ background: '#FFFFFF', borderRadius: '32px', boxShadow: '0 20px 60px rgba(0,0,0,0.06)', border: '1px solid rgba(229, 231, 235, 0.8)', padding: '40px', width: '440px', maxWidth: '100%' }}>
+    <div style={{ minHeight: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' }}>
+      <div style={{ padding: '40px', width: '100%', maxWidth: '440px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px' }}>
           <div style={{ background: '#18191C', color: '#FDF8E2', width: '38px', height: '38px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '18px' }}>⚡</div>
           <span style={{ fontSize: '18px', fontWeight: 800 }}>HackGuard AI</span>
