@@ -133,6 +133,7 @@ class EvaluationReportOut(BaseModel):
     static_analysis_json: Optional[Dict[str, Any]]
     plagiarism_json: Optional[Dict[str, Any]]
     ai_scores_json: Optional[Dict[str, Any]]
+    repo_verification_json: Optional[Dict[str, Any]] = None
     final_score: float
     judge_override_json: Optional[Dict[str, Any]]
     judge_comments: Optional[str]

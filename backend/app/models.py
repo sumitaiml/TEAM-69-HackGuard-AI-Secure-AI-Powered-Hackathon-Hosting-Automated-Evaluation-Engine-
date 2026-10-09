@@ -94,6 +94,11 @@ class EvaluationReport(Base):
     static_analysis_json = Column(JSON, nullable=True)
     plagiarism_json = Column(JSON, nullable=True)
     ai_scores_json = Column(JSON, nullable=True)
+    # Repo Verification Agent output (repo_verification_agent.py) - kept as
+    # its own column rather than nested inside static_analysis_json, since
+    # it's a qualitative/LLM output, not deterministic tool output, matching
+    # how static_analysis_json vs ai_scores_json are already kept separate.
+    repo_verification_json = Column(JSON, nullable=True)
     final_score = Column(Float, default=0.0)
     judge_override_json = Column(JSON, nullable=True)
     judge_comments = Column(Text, nullable=True)

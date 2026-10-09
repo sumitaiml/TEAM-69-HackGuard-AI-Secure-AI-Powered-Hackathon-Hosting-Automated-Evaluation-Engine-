@@ -1,5 +1,5 @@
 import logging
-from typing import List, Type, TypeVar
+from typing import Callable, List, Optional, Type, TypeVar
 
 from google import genai
 from google.genai import errors as genai_errors
@@ -84,33 +84,56 @@ Also provide:
     stop=stop_after_attempt(4),
     reraise=True,
 )
-def _call_model(client: "genai.Client", model_name: str, prompt: str, response_schema: Type[BaseModel]) -> str:
+def _call_model(
+    client: "genai.Client",
+    model_name: str,
+    prompt: str,
+    response_schema: Type[BaseModel],
+    tools: Optional[List[Callable]] = None,
+) -> str:
+    config_kwargs = dict(
+        temperature=0.1,
+        response_mime_type="application/json",
+        response_schema=response_schema,
+    )
+    if tools:
+        # Automatic Function Calling: passing plain Python functions (not
+        # types.Tool objects) lets the SDK run the whole look-then-decide
+        # tool-calling loop itself within this one generate_content() call -
+        # it introspects each function's signature/docstring for the
+        # function-declaration schema, executes it when the model requests
+        # it, and feeds the result back in, up to maximum_remote_calls.
+        config_kwargs["tools"] = tools
+        config_kwargs["automatic_function_calling"] = types.AutomaticFunctionCallingConfig(
+            maximum_remote_calls=settings.AGENT_MAX_TOOL_CALLS,
+        )
     response = client.models.generate_content(
         model=model_name,
         contents=prompt,
-        config=types.GenerateContentConfig(
-            temperature=0.1,
-            response_mime_type="application/json",
-            response_schema=response_schema,
-        ),
+        config=types.GenerateContentConfig(**config_kwargs),
     )
     return response.text
 
 
-def call_structured_gemini(prompt: str, response_schema: Type[T]) -> T:
-    """Generic single-shot structured-output call: one prompt in, one
-    Pydantic-validated response out, with model-fallback and a one-time
-    repair retry on schema-invalid output. This is the shared scaffolding
-    behind score_submission() below and every agent built on top of it
-    (timeline_agent.py, etc.) - raises on total failure across every model
-    candidate, so callers are responsible for their own degraded-mode
-    fallback rather than this function silently swallowing errors."""
+def call_structured_gemini(prompt: str, response_schema: Type[T], tools: Optional[List[Callable]] = None) -> T:
+    """Generic structured-output call: one prompt in, one Pydantic-validated
+    response out, with model-fallback and a one-time repair retry on
+    schema-invalid output. This is the shared scaffolding behind
+    score_submission() below and every agent built on top of it - raises on
+    total failure across every model candidate, so callers are responsible
+    for their own degraded-mode fallback rather than this function silently
+    swallowing errors.
+
+    `tools`, if given, turns this into a genuine agentic tool-calling call
+    (see _call_model) rather than a single-shot one - used by agents that
+    need to decide what to look at (repo_verification_agent.py) rather than
+    being handed everything relevant up front."""
     client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
     last_error: Exception = RuntimeError("No Gemini model candidates configured")
     for model_name in _model_candidates():
         try:
-            raw = _call_model(client, model_name, prompt, response_schema)
+            raw = _call_model(client, model_name, prompt, response_schema, tools)
         except Exception as e:
             logger.warning("Gemini model %s failed: %s", model_name, e)
             last_error = e
@@ -120,7 +143,9 @@ def call_structured_gemini(prompt: str, response_schema: Type[T]) -> T:
             return response_schema.model_validate_json(raw)
         except Exception as validation_error:
             # One repair retry: ask the same model to fix its own output
-            # before giving up on it and moving to the next candidate.
+            # before giving up on it and moving to the next candidate. No
+            # tools here - this is just a formatting fix of an answer the
+            # model already reasoned its way to, not another exploration pass.
             logger.warning("Gemini model %s returned invalid schema, attempting repair: %s", model_name, validation_error)
             try:
                 repair_prompt = (

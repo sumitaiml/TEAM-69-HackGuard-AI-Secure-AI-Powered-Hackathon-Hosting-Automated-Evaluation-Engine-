@@ -82,6 +82,10 @@ class Settings:
     # touching the others or the core deterministic pipeline.
     ENABLE_TIMELINE_AGENT: bool = os.getenv("ENABLE_TIMELINE_AGENT", "true").lower() == "true"
     ENABLE_PLAGIARISM_EXPLAINER_AGENT: bool = os.getenv("ENABLE_PLAGIARISM_EXPLAINER_AGENT", "true").lower() == "true"
+    ENABLE_REPO_VERIFICATION_AGENT: bool = os.getenv("ENABLE_REPO_VERIFICATION_AGENT", "true").lower() == "true"
+    # Hard cap on tool calls per agentic Gemini call - bounds cost/latency
+    # for any agent using call_structured_gemini(tools=...).
+    AGENT_MAX_TOOL_CALLS: int = int(os.getenv("AGENT_MAX_TOOL_CALLS", 10))
     # If SMTP_HOST is unset, invite emails aren't actually sent - the invite
     # link is returned directly in the API response instead (dev_invite_link)
     # so the feature works end-to-end without a real mail provider. Wiring in

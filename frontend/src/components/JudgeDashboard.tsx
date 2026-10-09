@@ -229,6 +229,7 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
 
     if (activeReportTab === 'ai') {
       const scores = report.ai_scores_json;
+      const repoVerification = report.repo_verification_json;
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ background: '#F0F7FF', padding: '16px', borderRadius: '16px' }}>
@@ -243,6 +244,35 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
               <ul style={{ paddingLeft: '20px', fontSize: '13px', lineHeight: '1.5', color: 'var(--text-secondary)' }}>
                 {scores!.improvement_suggestions.map((s, i) => <li key={i}>{s}</li>)}
               </ul>
+            </div>
+          )}
+          {repoVerification?.status === 'completed' && (
+            <div style={{ background: '#F9FAFB', padding: '16px', borderRadius: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <h4 style={{ fontSize: '14px', fontWeight: '800' }}>README Claim Verification</h4>
+                <span className="pill-badge blue">{Math.round(repoVerification.confidence * 100)}% confidence</span>
+              </div>
+              {repoVerification.architecture_summary && (
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '10px' }}>{repoVerification.architecture_summary}</p>
+              )}
+              {repoVerification.claims_checked.length > 0 && (
+                <ul style={{ paddingLeft: '20px', fontSize: '12px', lineHeight: '1.6', color: '#374151', marginBottom: '10px' }}>
+                  {repoVerification.claims_checked.map((c, i) => (
+                    <li key={i}>
+                      <span className={`pill-badge ${c.verdict === 'confirmed' ? 'green' : c.verdict === 'contradicted' ? 'red' : 'blue'}`} style={{ marginRight: '6px' }}>{c.verdict}</span>
+                      {c.claim} — <span style={{ color: 'var(--text-secondary)' }}>{c.evidence}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {repoVerification.red_flags.length > 0 && (
+                <>
+                  <div style={{ fontSize: '12px', fontWeight: '800', color: '#B45309', marginBottom: '4px' }}>Red Flags</div>
+                  <ul style={{ paddingLeft: '20px', fontSize: '12px', color: '#B45309' }}>
+                    {repoVerification.red_flags.map((f, i) => <li key={i}>{f}</li>)}
+                  </ul>
+                </>
+              )}
             </div>
           )}
         </div>

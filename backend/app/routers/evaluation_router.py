@@ -102,6 +102,9 @@ def get_hackathon_leaderboard(hackathon_id: str, db: Session = Depends(get_db)):
         timeline_risk = sub.timeline_risk_json or {}
         timeline_risk_level = timeline_risk.get("risk_level", "LOW")
         timeline_reasoning = timeline_risk.get("reasoning", "")
+        repo_verification = report.repo_verification_json if report else None
+        repo_red_flags_count = len(repo_verification.get("red_flags", [])) if repo_verification else 0
+        repo_claims_checked_count = len(repo_verification.get("claims_checked", [])) if repo_verification else 0
         # Module 12 wants per-parameter scores on the leaderboard itself, not
         # just buried in the individual report - judge overrides take
         # precedence over the raw AI scores, same as final_score does above.
@@ -128,6 +131,8 @@ def get_hackathon_leaderboard(hackathon_id: str, db: Session = Depends(get_db)):
             "ai_code_usage_percentage": ai_code_pct,
             "timeline_risk_level": timeline_risk_level,
             "timeline_reasoning": timeline_reasoning,
+            "repo_red_flags_count": repo_red_flags_count,
+            "repo_claims_checked_count": repo_claims_checked_count,
             "status": sub.status,
             "submitted_at": sub.submitted_at
         })

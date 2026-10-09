@@ -92,6 +92,13 @@ export interface EvaluationReport {
   static_analysis_json: Record<string, any> | null;
   plagiarism_json: Record<string, any> | null;
   ai_scores_json: AiScores | null;
+  repo_verification_json: {
+    status: string;
+    claims_checked: { claim: string; verdict: string; evidence: string }[];
+    architecture_summary: string;
+    red_flags: string[];
+    confidence: number;
+  } | null;
   final_score: number;
   judge_override_json: {
     overridden_by: string;
@@ -119,6 +126,8 @@ export interface LeaderboardEntry {
   ai_code_usage_percentage: number | null;
   timeline_risk_level: string;
   timeline_reasoning: string;
+  repo_red_flags_count: number;
+  repo_claims_checked_count: number;
   status: string;
   submitted_at: string;
   rank: number;
