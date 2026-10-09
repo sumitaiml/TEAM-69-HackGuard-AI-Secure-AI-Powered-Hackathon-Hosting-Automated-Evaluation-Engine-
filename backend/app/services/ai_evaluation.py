@@ -98,10 +98,13 @@ def evaluate_project_with_ai(
     doc_structural_score = _deterministic_documentation_score(readme_text)
     pres_structural_score = _deterministic_presentation_score(ppt_report)
 
-    pitch_deck_result = run_pitch_deck_agent(ppt_report)
-    pitch_deck_narrative_score = (
-        pitch_deck_result["overall_narrative_score"] if pitch_deck_result.get("status") == "completed" else _NEUTRAL_SCORE
-    )
+    pitch_deck_result = run_pitch_deck_agent(ppt_report, readme_text)
+    pitch_deck_completed = pitch_deck_result.get("status") == "completed"
+    pitch_deck_narrative_score = pitch_deck_result["overall_narrative_score"] if pitch_deck_completed else _NEUTRAL_SCORE
+    # Only trust an irrelevance verdict from a completed run - "skipped"/
+    # "error" default is_relevant_to_project to True precisely so absence
+    # of a check never gets misread as a mismatch.
+    pitch_deck_irrelevant = pitch_deck_completed and not pitch_deck_result.get("is_relevant_to_project", True)
 
     transcript = (whisper_report or {}).get("transcript", "")
     ppt_slides_text = _ppt_slides_as_text(ppt_report)
@@ -131,10 +134,19 @@ def evaluate_project_with_ai(
         improvement_suggestions = []
 
     doc_score = round(doc_structural_score * 0.5 + doc_gemini_score * 0.5, 2)
-    # Pitch-deck agent weighted deliberately low (0.2) relative to the two
-    # existing signals until it's validated against more real decks - see
-    # AI_Agents_Implementation_Plan.md section 11.
-    pres_score = round(pres_structural_score * 0.4 + pres_gemini_score * 0.4 + pitch_deck_narrative_score * 0.2, 2)
+    if pitch_deck_irrelevant:
+        # A deck that isn't about this project at all shouldn't get credit
+        # for being well-formatted or textually "clear" about the WRONG
+        # thing - the structural/Gemini presentation signals below are both
+        # judging the deck in isolation, with no idea it's off-topic, so
+        # blending them in here would just dilute the one check that
+        # actually caught the mismatch back down to a minor deduction.
+        pres_score = 0.0
+    else:
+        # Pitch-deck agent weighted deliberately low (0.2) relative to the
+        # two existing signals until it's validated against more real
+        # decks - see AI_Agents_Implementation_Plan.md section 11.
+        pres_score = round(pres_structural_score * 0.4 + pres_gemini_score * 0.4 + pitch_deck_narrative_score * 0.2, 2)
 
     parameter_scores = {
         "technical_complexity": tech_score,

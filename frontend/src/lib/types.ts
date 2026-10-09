@@ -90,6 +90,8 @@ export interface AiScores {
     missing_narrative_elements: string[];
     overall_narrative_score: number;
     slides_inspected_visually?: number[];
+    is_relevant_to_project?: boolean;
+    relevance_explanation?: string;
   };
 }
 
@@ -135,6 +137,8 @@ export interface LeaderboardEntry {
   timeline_reasoning: string;
   repo_red_flags_count: number;
   repo_claims_checked_count: number;
+  pitch_deck_relevant: boolean;
+  pitch_deck_relevance_explanation: string;
   status: string;
   submitted_at: string;
   rank: number;

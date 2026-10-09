@@ -78,19 +78,71 @@ def test_run_pitch_deck_agent_builds_multimodal_contents_for_image_slides(tmp_pa
             ],
             missing_narrative_elements=["no team slide"],
             overall_narrative_score=75.0,
+            is_relevant_to_project=True,
+            relevance_explanation="The deck pitches the same hackathon-judging product described in the README.",
         )
 
     monkeypatch.setattr(pitch_deck_agent_module, "call_structured_gemini", fake_call_structured_gemini)
 
-    result = run_pitch_deck_agent(ppt_report)
+    result = run_pitch_deck_agent(ppt_report, readme_text="# AutoJudge\nAutomates hackathon judging.")
 
     assert result["status"] == "completed"
     assert result["overall_narrative_score"] == 75.0
+    assert result["is_relevant_to_project"] is True
     assert result["slides_inspected_visually"] == [2]
     # The multimodal contents list should contain an actual image Part for
     # slide 2 (it was selected) and only plain text for slide 1.
     image_parts = [p for p in captured["contents"] if isinstance(p, types.Part)]
     assert len(image_parts) == 1
+    # The README must actually reach the prompt - this is what the
+    # relevance check reasons against.
+    text_parts = [p for p in captured["contents"] if isinstance(p, str)]
+    assert any("AutoJudge" in p for p in text_parts)
+
+
+def test_irrelevant_deck_forces_narrative_score_to_zero(monkeypatch):
+    ppt_report = {
+        "status": "completed",
+        "slides": [_slide(1, text="A recipe for chocolate chip cookies.")],
+    }
+
+    def fake_call_structured_gemini(contents, schema):
+        # The model reports a high narrative/clarity score for the deck on
+        # its own terms, while still (correctly) flagging it as unrelated -
+        # the server-side override must win regardless of what it scored.
+        return PitchDeckAnalysis(
+            slides=[SlideCritique(slide_number=1, narrative_role="other", clarity_score=90.0, notes="Well-formatted recipe slide.")],
+            missing_narrative_elements=["no problem statement", "no solution", "no team"],
+            overall_narrative_score=60.0,
+            is_relevant_to_project=False,
+            relevance_explanation="The deck describes a cookie recipe, not the hackathon project described in the README.",
+        )
+
+    monkeypatch.setattr(pitch_deck_agent_module, "call_structured_gemini", fake_call_structured_gemini)
+
+    result = run_pitch_deck_agent(ppt_report, readme_text="# AutoJudge\nAutomates hackathon judging.")
+
+    assert result["status"] == "completed"
+    assert result["is_relevant_to_project"] is False
+    assert result["overall_narrative_score"] == 0.0
+    assert "cookie" in result["relevance_explanation"].lower()
+
+
+def test_is_relevant_defaults_true_when_skipped_disabled_or_errored(monkeypatch):
+    assert run_pitch_deck_agent(None)["is_relevant_to_project"] is True
+    assert run_pitch_deck_agent({"status": "skipped", "slides": []})["is_relevant_to_project"] is True
+
+    monkeypatch.setattr(pitch_deck_agent_module.settings, "ENABLE_PITCH_DECK_AGENT", False)
+    assert run_pitch_deck_agent({"status": "completed", "slides": [_slide(1, text="x")]})["is_relevant_to_project"] is True
+    monkeypatch.setattr(pitch_deck_agent_module.settings, "ENABLE_PITCH_DECK_AGENT", True)
+
+    def _raise(*a, **k):
+        raise RuntimeError("All Gemini model candidates failed")
+
+    monkeypatch.setattr(pitch_deck_agent_module, "call_structured_gemini", _raise)
+    error_result = run_pitch_deck_agent({"status": "completed", "slides": [_slide(1, text="x")]})
+    assert error_result["status"] == "error"
+    assert error_result["is_relevant_to_project"] is True
 
 
 def test_degrades_gracefully_on_llm_failure(monkeypatch):

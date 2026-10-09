@@ -281,6 +281,11 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
                 <h4 style={{ fontSize: '14px', fontWeight: '800' }}>Pitch Deck Breakdown</h4>
                 <span className="pill-badge blue">{Math.round(scores.pitch_deck_analysis.overall_narrative_score)}/100 narrative</span>
               </div>
+              {scores.pitch_deck_analysis.is_relevant_to_project === false && (
+                <div style={{ background: '#FEE2E2', color: '#991B1B', padding: '10px 12px', borderRadius: '10px', fontSize: '12px', fontWeight: '600', marginBottom: '10px' }}>
+                  ⚠️ This deck does not appear to be about this project. {scores.pitch_deck_analysis.relevance_explanation}
+                </div>
+              )}
               <ul style={{ paddingLeft: '20px', fontSize: '12px', lineHeight: '1.6', color: '#374151' }}>
                 {scores.pitch_deck_analysis.slides.map((s) => (
                   <li key={s.slide_number}>

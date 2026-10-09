@@ -312,6 +312,34 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
             </tbody>
           </table>
         </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '28px 0 12px' }}>
+          <div>
+            <h4 style={{ fontSize: '16px', fontWeight: '800' }}>Pitch Deck Relevance Check</h4>
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              Checks whether the uploaded presentation is actually about this project (vs. an unrelated or placeholder file) by comparing it against the README. A flagged deck's presentation score is zeroed out - it still doesn't affect technical/innovation/documentation scores, which are judged independently.
+            </p>
+          </div>
+        </div>
+        <div className="data-table-container">
+          <table className="data-table">
+            <thead>
+              <tr><th>Team Name</th><th>Deck Relevant?</th><th>Explanation</th></tr>
+            </thead>
+            <tbody>
+              {leaderboard.length === 0 && (
+                <tr><td colSpan={3} style={{ color: 'var(--text-secondary)' }}>No submissions yet.</td></tr>
+              )}
+              {leaderboard.map((item) => (
+                <tr key={item.submission_id}>
+                  <td style={{ fontWeight: '700' }}>{item.team_name}</td>
+                  <td><span className={`pill-badge ${item.pitch_deck_relevant ? 'green' : 'red'}`}>{item.pitch_deck_relevant ? 'Relevant' : 'Flagged'}</span></td>
+                  <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{item.pitch_deck_relevance_explanation || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     );
   }
