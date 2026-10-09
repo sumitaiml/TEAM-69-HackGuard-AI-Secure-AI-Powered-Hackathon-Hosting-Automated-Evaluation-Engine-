@@ -118,6 +118,26 @@ class PlagiarismFingerprint(Base):
         Index("ix_plagiarism_fingerprints_minhash_gin", "minhash_signature", postgresql_using="gin"),
     )
 
+class PlagiarismFileFingerprint(Base):
+    __tablename__ = "plagiarism_file_fingerprints"
+
+    # Per-file MinHash signatures, unlike PlagiarismFingerprint above which
+    # is one signature for a submission's whole codebase concatenated - that
+    # aggregate signature is all the fast GIN-shortlisted whole-submission
+    # risk-level check needs, but gives the Plagiarism Explainer Agent
+    # nothing concrete to point at. Only computed for submissions that
+    # whole-submission check has already flagged MEDIUM/CRITICAL (see
+    # plagiarism_engine.py) - not every submission gets rows here.
+    id = Column(String, primary_key=True, default=generate_uuid)
+    submission_id = Column(String, ForeignKey("submissions.id"), nullable=False)
+    file_path = Column(String, nullable=False)
+    minhash_signature = Column(ARRAY(Integer), nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_plagiarism_file_fingerprints_gin", "minhash_signature", postgresql_using="gin"),
+    )
+
 class JudgeInvite(Base):
     __tablename__ = "judge_invites"
 

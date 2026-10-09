@@ -81,6 +81,7 @@ class Settings:
     # each independently feature-flagged so one can be disabled without
     # touching the others or the core deterministic pipeline.
     ENABLE_TIMELINE_AGENT: bool = os.getenv("ENABLE_TIMELINE_AGENT", "true").lower() == "true"
+    ENABLE_PLAGIARISM_EXPLAINER_AGENT: bool = os.getenv("ENABLE_PLAGIARISM_EXPLAINER_AGENT", "true").lower() == "true"
     # If SMTP_HOST is unset, invite emails aren't actually sent - the invite
     # link is returned directly in the API response instead (dev_invite_link)
     # so the feature works end-to-end without a real mail provider. Wiring in

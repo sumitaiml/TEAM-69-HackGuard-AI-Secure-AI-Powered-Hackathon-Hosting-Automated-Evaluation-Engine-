@@ -2,9 +2,11 @@ import logging
 
 from app.celery_app import celery_app
 from app import database, models
+from app.config import settings
 from app.services.source_fetch import extract_submission_source
 from app.services.static_analysis import run_static_code_analysis
 from app.services.plagiarism_engine import run_plagiarism_check
+from app.services.plagiarism_explainer_agent import run_plagiarism_explainer_agent
 from app.services.ai_code_detection import run_ai_code_detection_check
 from app.services.timeline_agent import run_timeline_risk_check
 from app.services.sandbox_runner import execute_in_docker_sandbox
@@ -42,6 +44,14 @@ def run_full_evaluation_task(self, submission_id: str):
 
             self.update_state(state="PROGRESS", meta={"stage": "plagiarism_check"})
             plagiarism_report = run_plagiarism_check(db, sub, source_dir)
+            if (
+                settings.ENABLE_PLAGIARISM_EXPLAINER_AGENT
+                and plagiarism_report.get("risk_level") in ("MEDIUM", "CRITICAL")
+                and plagiarism_report.get("flagged_matching_submission_id")
+            ):
+                plagiarism_report["explanation"] = run_plagiarism_explainer_agent(
+                    db, sub.id, plagiarism_report["flagged_matching_submission_id"], source_dir,
+                )
 
             self.update_state(state="PROGRESS", meta={"stage": "timeline_check"})
             sub.timeline_risk_json = run_timeline_risk_check(sub, hackathon.start_date if hackathon else None)

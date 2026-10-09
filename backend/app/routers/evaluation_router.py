@@ -95,6 +95,7 @@ def get_hackathon_leaderboard(hackathon_id: str, db: Session = Depends(get_db)):
         score = report.final_score if report else 0.0
         plag_risk = report.plagiarism_json.get("risk_level", "LOW") if report and report.plagiarism_json else "LOW"
         plag_pct = report.plagiarism_json.get("similarity_percentage", 0.0) if report and report.plagiarism_json else 0.0
+        plag_explanation = report.plagiarism_json.get("explanation") if report and report.plagiarism_json else None
         ai_code_detection = report.static_analysis_json.get("ai_generated_code_detection") if report and report.static_analysis_json else None
         ai_code_risk = ai_code_detection.get("risk_level", "UNKNOWN") if ai_code_detection else "UNKNOWN"
         ai_code_pct = ai_code_detection.get("estimated_ai_usage_percentage") if ai_code_detection else None
@@ -122,6 +123,7 @@ def get_hackathon_leaderboard(hackathon_id: str, db: Session = Depends(get_db)):
             "parameter_scores": param_scores,
             "plagiarism_risk": plag_risk,
             "plagiarism_percentage": plag_pct,
+            "plagiarism_explanation": plag_explanation,
             "ai_code_risk": ai_code_risk,
             "ai_code_usage_percentage": ai_code_pct,
             "timeline_risk_level": timeline_risk_level,

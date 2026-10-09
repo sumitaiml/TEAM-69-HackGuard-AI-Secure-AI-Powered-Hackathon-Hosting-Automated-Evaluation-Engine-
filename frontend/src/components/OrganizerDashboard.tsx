@@ -156,7 +156,7 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
           <div>
             <h3 style={{ fontSize: '20px', fontWeight: '800' }}>Plagiarism & Fraud Detection Monitor</h3>
             <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-              AST/MinHash cross-submission plagiarism flags for {activeHackathon?.title || '—'}
+              AST/MinHash cross-submission plagiarism flags for {activeHackathon?.title || '—'}. AI explanations are flagged for organizer review, not a finding of fact.
             </p>
           </div>
           <span className="pill-badge red">{criticalCount} High Risk Alerts</span>
@@ -165,11 +165,11 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
         <div className="data-table-container">
           <table className="data-table">
             <thead>
-              <tr><th>Team Name</th><th>Repository</th><th>Similarity</th><th>Risk Level</th><th>Actions</th></tr>
+              <tr><th>Team Name</th><th>Repository</th><th>Similarity</th><th>Risk Level</th><th>AI Explanation</th><th>Actions</th></tr>
             </thead>
             <tbody>
               {leaderboard.length === 0 && (
-                <tr><td colSpan={5} style={{ color: 'var(--text-secondary)' }}>No submissions yet.</td></tr>
+                <tr><td colSpan={6} style={{ color: 'var(--text-secondary)' }}>No submissions yet.</td></tr>
               )}
               {leaderboard.map((item) => (
                 <tr key={item.submission_id}>
@@ -177,6 +177,16 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
                   <td style={{ color: 'var(--text-secondary)' }}>{item.github_url || '—'}</td>
                   <td><span style={{ fontWeight: '800', color: item.plagiarism_risk === 'CRITICAL' ? '#EF4444' : '#10B981' }}>{item.plagiarism_percentage}%</span></td>
                   <td><span className={`pill-badge ${item.plagiarism_risk === 'CRITICAL' ? 'red' : item.plagiarism_risk === 'MEDIUM' ? 'amber' : 'green'}`}>{item.plagiarism_risk}</span></td>
+                  <td style={{ maxWidth: '280px' }}>
+                    {item.plagiarism_explanation ? (
+                      <>
+                        <span className={`pill-badge ${item.plagiarism_explanation.verdict === 'probable_copying' ? 'red' : item.plagiarism_explanation.verdict === 'likely_shared_boilerplate' ? 'green' : 'blue'}`} style={{ marginBottom: '4px', display: 'inline-block' }}>
+                          {item.plagiarism_explanation.verdict.replace(/_/g, ' ')}
+                        </span>
+                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{item.plagiarism_explanation.explanation}</div>
+                      </>
+                    ) : '—'}
+                  </td>
                   <td>
                     {item.github_url && (
                       <a className="role-btn" style={{ fontSize: '12px', textDecoration: 'none', display: 'inline-block' }} href={item.github_url} target="_blank" rel="noreferrer">

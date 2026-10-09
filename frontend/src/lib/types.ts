@@ -114,6 +114,7 @@ export interface LeaderboardEntry {
   parameter_scores: Record<string, number> | null;
   plagiarism_risk: string;
   plagiarism_percentage: number;
+  plagiarism_explanation: { verdict: string; explanation: string; cited_file_pairs: string[] } | null;
   ai_code_risk: string;
   ai_code_usage_percentage: number | null;
   timeline_risk_level: string;
