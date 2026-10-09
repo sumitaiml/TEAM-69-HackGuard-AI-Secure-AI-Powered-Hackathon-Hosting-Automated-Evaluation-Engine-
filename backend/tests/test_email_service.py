@@ -89,24 +89,24 @@ def test_password_reset_email_sends_successfully(smtp_configured, monkeypatch):
 
 
 def test_from_header_includes_display_name_when_configured(monkeypatch):
-    monkeypatch.setattr(email_service_module.settings, "SMTP_FROM_NAME", "HackGuard AI")
-    monkeypatch.setattr(email_service_module.settings, "SMTP_FROM_ADDRESS", "no-reply@hackguard.ai")
-    assert _from_header() == "HackGuard AI <no-reply@hackguard.ai>"
+    monkeypatch.setattr(email_service_module.settings, "SMTP_FROM_NAME", "HackEval")
+    monkeypatch.setattr(email_service_module.settings, "SMTP_FROM_ADDRESS", "no-reply@hackeval.ai")
+    assert _from_header() == "HackEval <no-reply@hackeval.ai>"
 
 
 def test_from_header_falls_back_to_bare_address_without_a_name(monkeypatch):
     monkeypatch.setattr(email_service_module.settings, "SMTP_FROM_NAME", "")
-    monkeypatch.setattr(email_service_module.settings, "SMTP_FROM_ADDRESS", "no-reply@hackguard.ai")
-    assert _from_header() == "no-reply@hackguard.ai"
+    monkeypatch.setattr(email_service_module.settings, "SMTP_FROM_ADDRESS", "no-reply@hackeval.ai")
+    assert _from_header() == "no-reply@hackeval.ai"
 
 
 def test_sent_email_actually_carries_the_display_name(smtp_configured, monkeypatch):
-    monkeypatch.setattr(email_service_module.settings, "SMTP_FROM_NAME", "HackGuard AI")
-    monkeypatch.setattr(email_service_module.settings, "SMTP_FROM_ADDRESS", "no-reply@hackguard.ai")
+    monkeypatch.setattr(email_service_module.settings, "SMTP_FROM_NAME", "HackEval")
+    monkeypatch.setattr(email_service_module.settings, "SMTP_FROM_ADDRESS", "no-reply@hackeval.ai")
     _FakeSMTPSuccess.sent_messages = []
     monkeypatch.setattr(smtplib, "SMTP", _FakeSMTPSuccess)
 
     send_password_reset_email("user@example.com", "http://localhost/reset-password?token=xyz")
 
     assert len(_FakeSMTPSuccess.sent_messages) == 1
-    assert _FakeSMTPSuccess.sent_messages[0]["From"] == "HackGuard AI <no-reply@hackguard.ai>"
+    assert _FakeSMTPSuccess.sent_messages[0]["From"] == "HackEval <no-reply@hackeval.ai>"

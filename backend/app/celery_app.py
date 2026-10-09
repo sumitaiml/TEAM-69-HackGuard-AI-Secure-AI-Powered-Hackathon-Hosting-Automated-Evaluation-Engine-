@@ -3,7 +3,7 @@ from celery import Celery
 from app.config import settings
 
 celery_app = Celery(
-    "hackguard",
+    "hackeval",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
     # The worker process is started as `celery -A app.celery_app worker`,

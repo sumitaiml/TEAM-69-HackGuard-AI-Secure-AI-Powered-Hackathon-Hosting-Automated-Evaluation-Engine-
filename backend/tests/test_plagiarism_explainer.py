@@ -138,9 +138,9 @@ def test_get_candidate_file_pairs_uses_real_sql(client, db_session):
     # PlagiarismFileFingerprint.submission_id is a real foreign key - create
     # actual Hackathon/Team/Submission rows rather than weakening the schema
     # to accommodate a sloppier test.
-    hack_id = _create_hackathon(client, "org_candidatepairs@hackguard.ai")
-    _, team_a = _register_participant_with_team(client, "candidatepairs_a@hackguard.ai", "TeamCandidateA")
-    _, team_b = _register_participant_with_team(client, "candidatepairs_b@hackguard.ai", "TeamCandidateB")
+    hack_id = _create_hackathon(client, "org_candidatepairs@hackeval.ai")
+    _, team_a = _register_participant_with_team(client, "candidatepairs_a@hackeval.ai", "TeamCandidateA")
+    _, team_b = _register_participant_with_team(client, "candidatepairs_b@hackeval.ai", "TeamCandidateB")
     _make_submission(db_session, "sub-a", hack_id, team_a)
     _make_submission(db_session, "sub-b", hack_id, team_b)
     db_session.commit()
@@ -195,9 +195,9 @@ def test_full_pipeline_triggers_explainer_only_for_flagged_submission(client, mo
     )
     monkeypatch.setattr(plagiarism_explainer_agent_module, "call_structured_gemini", lambda prompt, schema: fake_explanation)
 
-    hack_id = _create_hackathon(client, "org_explainer@hackguard.ai")
+    hack_id = _create_hackathon(client, "org_explainer@hackeval.ai")
 
-    headers_a, team_a = _register_participant_with_team(client, "explainer_a@hackguard.ai", "TeamExplainerA")
+    headers_a, team_a = _register_participant_with_team(client, "explainer_a@hackeval.ai", "TeamExplainerA")
     sub_a = _submit_zip(client, headers_a, hack_id, team_a, {"main.py": EVAL_SNIPPET_A})
     task_a = client.post(f"/api/evaluation/evaluate/{sub_a}", headers=headers_a)
     assert task_a.status_code == 202
@@ -206,7 +206,7 @@ def test_full_pipeline_triggers_explainer_only_for_flagged_submission(client, mo
     assert report_a["plagiarism_json"]["risk_level"] == "LOW"
     assert report_a["plagiarism_json"].get("explanation") is None
 
-    headers_b, team_b = _register_participant_with_team(client, "explainer_b@hackguard.ai", "TeamExplainerB")
+    headers_b, team_b = _register_participant_with_team(client, "explainer_b@hackeval.ai", "TeamExplainerB")
     sub_b = _submit_zip(client, headers_b, hack_id, team_b, {"main.py": EVAL_SNIPPET_A_CLONE})
     task_b = client.post(f"/api/evaluation/evaluate/{sub_b}", headers=headers_b)
     assert task_b.status_code == 202

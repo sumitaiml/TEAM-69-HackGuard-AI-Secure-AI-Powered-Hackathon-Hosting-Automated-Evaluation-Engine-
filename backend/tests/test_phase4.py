@@ -32,7 +32,7 @@ def test_phase4_evaluation_override_and_leaderboard(client, monkeypatch):
 
     # 1. Register Users (Participant, Organizer, Judge)
     part_res = client.post("/api/auth/register", json={
-        "email": "phase4_part@hackguard.ai",
+        "email": "phase4_part@hackeval.ai",
         "password": "password123",
         "full_name": "Phase4 Participant",
         "role": "participant"
@@ -41,7 +41,7 @@ def test_phase4_evaluation_override_and_leaderboard(client, monkeypatch):
     part_headers = {"Authorization": f"Bearer {part_token}"}
 
     org_res = client.post("/api/auth/register", json={
-        "email": "phase4_org@hackguard.ai",
+        "email": "phase4_org@hackeval.ai",
         "password": "password123",
         "full_name": "Phase4 Organizer",
         "role": "organizer"
@@ -61,7 +61,7 @@ def test_phase4_evaluation_override_and_leaderboard(client, monkeypatch):
     # a real judge account.
     invite_res = client.post(
         f"/api/hackathons/{hack_id}/invite-judge",
-        json={"email": "phase4_judge@hackguard.ai"},
+        json={"email": "phase4_judge@hackeval.ai"},
         headers=org_headers
     )
     assert invite_res.status_code == 201
@@ -167,13 +167,13 @@ def test_evaluation_degrades_gracefully_when_gemini_fails(client, monkeypatch):
     )
 
     part_res = client.post("/api/auth/register", json={
-        "email": "degraded_part@hackguard.ai", "password": "password123",
+        "email": "degraded_part@hackeval.ai", "password": "password123",
         "full_name": "Degraded Participant", "role": "participant"
     })
     part_headers = {"Authorization": f"Bearer {part_res.json()['access_token']}"}
 
     org_res = client.post("/api/auth/register", json={
-        "email": "degraded_org@hackguard.ai", "password": "password123",
+        "email": "degraded_org@hackeval.ai", "password": "password123",
         "full_name": "Degraded Organizer", "role": "organizer"
     })
     org_headers = {"Authorization": f"Bearer {org_res.json()['access_token']}"}

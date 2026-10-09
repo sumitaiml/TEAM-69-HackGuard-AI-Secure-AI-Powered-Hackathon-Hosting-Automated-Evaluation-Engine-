@@ -165,8 +165,8 @@ def _poll_task(client, headers, task_id):
 
 
 def test_static_analysis_flags_real_eval_usage(client):
-    headers, team_id = _register_participant_with_team(client, "phase3@hackguard.ai", "SecurityTeam")
-    hack_id = _create_hackathon(client, "org_phase3@hackguard.ai")
+    headers, team_id = _register_participant_with_team(client, "phase3@hackeval.ai", "SecurityTeam")
+    hack_id = _create_hackathon(client, "org_phase3@hackeval.ai")
     sub_id = _submit_zip(client, headers, hack_id, team_id, {"main.py": EVAL_SNIPPET_A})
 
     static_res = client.post(f"/api/analysis/run-static/{sub_id}", headers=headers)
@@ -189,8 +189,8 @@ def test_static_analysis_flags_real_eval_usage(client):
 
 
 def test_static_analysis_clean_code_has_no_findings(client):
-    headers, team_id = _register_participant_with_team(client, "clean@hackguard.ai", "CleanTeam")
-    hack_id = _create_hackathon(client, "org_clean@hackguard.ai")
+    headers, team_id = _register_participant_with_team(client, "clean@hackeval.ai", "CleanTeam")
+    hack_id = _create_hackathon(client, "org_clean@hackeval.ai")
     sub_id = _submit_zip(client, headers, hack_id, team_id, {"calc.py": CLEAN_SNIPPET})
 
     static_res = client.post(f"/api/analysis/run-static/{sub_id}", headers=headers)
@@ -203,8 +203,8 @@ def test_static_analysis_clean_code_has_no_findings(client):
 
 
 def test_static_analysis_skips_when_no_source(client):
-    headers, team_id = _register_participant_with_team(client, "nosource@hackguard.ai", "NoSourceTeam")
-    hack_id = _create_hackathon(client, "org_nosource@hackguard.ai")
+    headers, team_id = _register_participant_with_team(client, "nosource@hackeval.ai", "NoSourceTeam")
+    hack_id = _create_hackathon(client, "org_nosource@hackeval.ai")
 
     res = client.post(
         "/api/submissions/upload",
@@ -222,15 +222,15 @@ def test_static_analysis_skips_when_no_source(client):
 
 
 def test_plagiarism_flags_near_duplicate_submissions(client):
-    hack_id = _create_hackathon(client, "org_plag@hackguard.ai")
+    hack_id = _create_hackathon(client, "org_plag@hackeval.ai")
 
-    headers_a, team_a = _register_participant_with_team(client, "plag_a@hackguard.ai", "TeamAlpha")
+    headers_a, team_a = _register_participant_with_team(client, "plag_a@hackeval.ai", "TeamAlpha")
     sub_a = _submit_zip(client, headers_a, hack_id, team_a, {"main.py": EVAL_SNIPPET_A})
 
-    headers_b, team_b = _register_participant_with_team(client, "plag_b@hackguard.ai", "TeamBeta")
+    headers_b, team_b = _register_participant_with_team(client, "plag_b@hackeval.ai", "TeamBeta")
     sub_b = _submit_zip(client, headers_b, hack_id, team_b, {"main.py": EVAL_SNIPPET_A_CLONE})
 
-    headers_c, team_c = _register_participant_with_team(client, "plag_c@hackguard.ai", "TeamGamma")
+    headers_c, team_c = _register_participant_with_team(client, "plag_c@hackeval.ai", "TeamGamma")
     sub_c = _submit_zip(client, headers_c, hack_id, team_c, {"calc.py": CLEAN_SNIPPET})
 
     # Fingerprint A and C first so B has something to match against
@@ -255,8 +255,8 @@ def test_sandbox_endpoint_skips_unrecognized_project(client):
     # before ever touching the Docker daemon, which is why this doesn't need
     # docker socket access to run (the api container, where pytest runs,
     # deliberately doesn't have it - only the worker does).
-    headers, team_id = _register_participant_with_team(client, "sandbox@hackguard.ai", "SandboxTeam")
-    hack_id = _create_hackathon(client, "org_sandbox@hackguard.ai")
+    headers, team_id = _register_participant_with_team(client, "sandbox@hackeval.ai", "SandboxTeam")
+    hack_id = _create_hackathon(client, "org_sandbox@hackeval.ai")
     sub_id = _submit_zip(client, headers, hack_id, team_id, {"main.py": CLEAN_SNIPPET})
 
     sandbox_res = client.post(f"/api/analysis/sandbox/{sub_id}", headers=headers)
@@ -287,8 +287,8 @@ def test_sandbox_endpoint_mocked_successful_execution(client, monkeypatch):
     }
     monkeypatch.setattr(sandbox_tasks, "execute_in_docker_sandbox", lambda submission_id, source_dir: fake_result)
 
-    headers, team_id = _register_participant_with_team(client, "sandbox_mock@hackguard.ai", "SandboxMockTeam")
-    hack_id = _create_hackathon(client, "org_sandbox_mock@hackguard.ai")
+    headers, team_id = _register_participant_with_team(client, "sandbox_mock@hackeval.ai", "SandboxMockTeam")
+    hack_id = _create_hackathon(client, "org_sandbox_mock@hackeval.ai")
     sub_id = _submit_zip(client, headers, hack_id, team_id, {"main.py": CLEAN_SNIPPET})
 
     sandbox_res = client.post(f"/api/analysis/sandbox/{sub_id}", headers=headers)

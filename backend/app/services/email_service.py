@@ -34,7 +34,7 @@ def send_judge_invite_email(to_email: str, invite_link: str, hackathon_title: st
     message["From"] = _from_header()
     message["To"] = to_email
     message.set_content(
-        f"You've been invited to judge \"{hackathon_title}\" on HackGuard AI.\n\n"
+        f"You've been invited to judge \"{hackathon_title}\" on HackEval.\n\n"
         f"Accept your invitation here: {invite_link}\n\n"
         f"This link expires in {settings.JUDGE_INVITE_EXPIRY_DAYS} days."
     )
@@ -91,7 +91,7 @@ def _send_simple_email(to_email: str, subject: str, body: str, link: str) -> Opt
 def send_password_reset_email(to_email: str, reset_link: str) -> Optional[str]:
     return _send_simple_email(
         to_email,
-        "Reset your HackGuard AI password",
+        "Reset your HackEval password",
         f"We received a request to reset your password.\n\n"
         f"Reset it here: {reset_link}\n\n"
         f"This link expires in {settings.PASSWORD_RESET_EXPIRY_HOURS} hours. "
@@ -103,7 +103,7 @@ def send_password_reset_email(to_email: str, reset_link: str) -> Optional[str]:
 def send_verification_email(to_email: str, verify_link: str) -> Optional[str]:
     return _send_simple_email(
         to_email,
-        "Verify your HackGuard AI email address",
-        f"Welcome to HackGuard AI! Please verify your email address:\n\n{verify_link}",
+        "Verify your HackEval email address",
+        f"Welcome to HackEval! Please verify your email address:\n\n{verify_link}",
         link=verify_link,
     )

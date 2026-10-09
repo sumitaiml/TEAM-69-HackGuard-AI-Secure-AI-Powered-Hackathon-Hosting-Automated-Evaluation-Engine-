@@ -1,8 +1,8 @@
-# HackGuard AI — PRD Gap Analysis
+# HackEval — PRD Gap Analysis
 
 **Document Version:** 1.0
 **Status:** Analysis only — nothing in this document is implemented yet
-**Compared against:** `HackGuard_AI_PRD_Updated.md` (v1.1) vs. the codebase as of Phase 10
+**Compared against:** `HackEval_PRD_Updated.md` (v1.1) vs. the codebase as of Phase 10
 **Method:** Every claim below was checked directly against the current code (grep/read, not memory) — file paths and specific confirmations are given throughout so this stays verifiable rather than assumed.
 
 ---

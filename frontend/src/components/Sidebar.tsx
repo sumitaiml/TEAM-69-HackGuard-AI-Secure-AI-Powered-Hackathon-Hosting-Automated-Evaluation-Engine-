@@ -49,7 +49,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentRole, activeTab, setAct
             ⚡
           </div>
           <div>
-            <h2 style={{ fontSize: '18px', fontWeight: '800', lineHeight: '1.2' }}>HackGuard AI</h2>
+            <h2 style={{ fontSize: '18px', fontWeight: '800', lineHeight: '1.2' }}>HackEval</h2>
             <span style={{ fontSize: '11px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               {currentRole} Portal
             </span>

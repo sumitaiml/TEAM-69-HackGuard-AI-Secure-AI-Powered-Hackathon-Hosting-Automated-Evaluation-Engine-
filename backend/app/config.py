@@ -6,17 +6,17 @@ env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
 load_dotenv(dotenv_path=env_path)
 
 class Settings:
-    PROJECT_NAME: str = "HackGuard AI Engine"
+    PROJECT_NAME: str = "HackEval Engine"
     VERSION: str = "1.0.0"
     
     # 1. Auth & JWT
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "hackguard_super_secret_jwt_key_2026")
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "hackeval_super_secret_jwt_key_2026")
     ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 1440))
     
     # 2. Database
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/hackguard_db")
-    TEST_DATABASE_URL: str = os.getenv("TEST_DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/hackguard_test")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/hackeval_db")
+    TEST_DATABASE_URL: str = os.getenv("TEST_DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/hackeval_test")
     
     # 3. AI Services (Gemini API)
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
@@ -42,12 +42,12 @@ class Settings:
     # Fixed Docker volume name (see docker-compose.yml's `name:` override) -
     # sibling sandbox containers mount this by name via the host daemon
     # (DooD), so it must match exactly regardless of compose project name.
-    SANDBOX_VOLUME_NAME: str = os.getenv("SANDBOX_VOLUME_NAME", "hackguard_sandbox_workspace")
+    SANDBOX_VOLUME_NAME: str = os.getenv("SANDBOX_VOLUME_NAME", "hackeval_sandbox_workspace")
     # Dedicated bridge network for sandbox containers, created idempotently
     # by the worker on first use - deliberately NOT the compose-managed
     # internal network, so sandboxed code can never reach postgres/redis/
     # api/worker even during the network-on install phase.
-    SANDBOX_NETWORK_NAME: str = os.getenv("SANDBOX_NETWORK_NAME", "hackguard-sandbox-net")
+    SANDBOX_NETWORK_NAME: str = os.getenv("SANDBOX_NETWORK_NAME", "hackeval-sandbox-net")
 
     # 7. CORS
     # Comma-separated list of allowed origins for the frontend SPA.
@@ -95,12 +95,12 @@ class Settings:
     SMTP_PORT: int = int(os.getenv("SMTP_PORT", 587))
     SMTP_USERNAME: str = os.getenv("SMTP_USERNAME", "")
     SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
-    SMTP_FROM_ADDRESS: str = os.getenv("SMTP_FROM_ADDRESS", "no-reply@hackguard.ai")
-    # Display name shown in the recipient's inbox (e.g. "HackGuard AI" rather
+    SMTP_FROM_ADDRESS: str = os.getenv("SMTP_FROM_ADDRESS", "no-reply@hackeval.ai")
+    # Display name shown in the recipient's inbox (e.g. "HackEval" rather
     # than a raw email address). The address itself is still typically
     # enforced/rewritten by the provider (Gmail included) to match the
     # authenticated account - this only controls the friendly name part.
-    SMTP_FROM_NAME: str = os.getenv("SMTP_FROM_NAME", "HackGuard AI")
+    SMTP_FROM_NAME: str = os.getenv("SMTP_FROM_NAME", "HackEval")
     SMTP_USE_TLS: bool = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
 
     @property

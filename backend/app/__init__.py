@@ -1,1 +1,1 @@
-# HackGuard AI Backend Package
+# HackEval Backend Package

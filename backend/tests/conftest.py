@@ -47,7 +47,7 @@ def force_smtp_disabled_in_tests(monkeypatch):
     local SMTP credentials in backend/.env - without this, a dev who's
     configured real SMTP for manual testing (see email_service.py) would
     see the test suite start making genuine outbound email attempts to
-    fake @hackguard.ai test addresses. Gmail (and most providers) accept
+    fake @hackeval.ai test addresses. Gmail (and most providers) accept
     those for relay without a synchronous bounce, so the send reports
     success, silently breaking every test that expects the dev-link
     fallback - exactly what happened the first time this was missed."""

@@ -15,7 +15,7 @@ def _make_valid_zip_bytes(inner_filename="README.md", content=b"# Test Project\n
     return buf.getvalue()
 
 
-def _register_participant_with_team(client, email="submitter@hackguard.ai", team_name="AlphaCoders"):
+def _register_participant_with_team(client, email="submitter@hackeval.ai", team_name="AlphaCoders"):
     user_res = client.post("/api/auth/register", json={
         "email": email,
         "password": "password123",
@@ -29,7 +29,7 @@ def _register_participant_with_team(client, email="submitter@hackguard.ai", team
     return headers, team_id
 
 
-def _create_hackathon(client, email="org2@hackguard.ai"):
+def _create_hackathon(client, email="org2@hackeval.ai"):
     org_res = client.post("/api/auth/register", json={
         "email": email,
         "password": "password123",
@@ -93,8 +93,8 @@ def test_submission_multi_asset_upload(client):
 
 
 def test_upload_rejects_invalid_zip_content(client):
-    headers, team_id = _register_participant_with_team(client, "badzip@hackguard.ai", "BadZipTeam")
-    hack_id = _create_hackathon(client, "org_badzip@hackguard.ai")
+    headers, team_id = _register_participant_with_team(client, "badzip@hackeval.ai", "BadZipTeam")
+    hack_id = _create_hackathon(client, "org_badzip@hackeval.ai")
 
     fake_zip = ("project.zip", io.BytesIO(b"not actually a zip file"), "application/zip")
 
@@ -109,8 +109,8 @@ def test_upload_rejects_invalid_zip_content(client):
 
 
 def test_upload_rejects_disallowed_extension(client):
-    headers, team_id = _register_participant_with_team(client, "badext@hackguard.ai", "BadExtTeam")
-    hack_id = _create_hackathon(client, "org_badext@hackguard.ai")
+    headers, team_id = _register_participant_with_team(client, "badext@hackeval.ai", "BadExtTeam")
+    hack_id = _create_hackathon(client, "org_badext@hackeval.ai")
 
     exe_file = ("payload.exe", io.BytesIO(b"MZ\x90\x00fakebinary"), "application/octet-stream")
 
@@ -127,8 +127,8 @@ def test_upload_rejects_disallowed_extension(client):
 def test_upload_rejects_oversized_zip(client, monkeypatch):
     monkeypatch.setattr(settings, "MAX_ZIP_SIZE_MB", 0)  # anything nonempty now exceeds the cap
 
-    headers, team_id = _register_participant_with_team(client, "bigzip@hackguard.ai", "BigZipTeam")
-    hack_id = _create_hackathon(client, "org_bigzip@hackguard.ai")
+    headers, team_id = _register_participant_with_team(client, "bigzip@hackeval.ai", "BigZipTeam")
+    hack_id = _create_hackathon(client, "org_bigzip@hackeval.ai")
 
     big_zip = ("project.zip", io.BytesIO(_make_valid_zip_bytes()), "application/zip")
 
@@ -148,8 +148,8 @@ def test_upload_video_duration_validation(client, monkeypatch):
     # real video files.
     import app.services.upload_validation as upload_validation
 
-    headers, team_id = _register_participant_with_team(client, "video@hackguard.ai", "VideoTeam")
-    hack_id = _create_hackathon(client, "org_video@hackguard.ai")
+    headers, team_id = _register_participant_with_team(client, "video@hackeval.ai", "VideoTeam")
+    hack_id = _create_hackathon(client, "org_video@hackeval.ai")
 
     # Too short (10s) - outside the 180-300s window
     monkeypatch.setattr(upload_validation, "probe_video_duration_seconds", lambda path: 10.0)
@@ -179,8 +179,8 @@ def test_upload_video_duration_validation(client, monkeypatch):
 
 
 def test_submission_ownership_checks(client):
-    headers, team_id = _register_participant_with_team(client, "owner@hackguard.ai", "OwnerTeam")
-    hack_id = _create_hackathon(client, "org_owner@hackguard.ai")
+    headers, team_id = _register_participant_with_team(client, "owner@hackeval.ai", "OwnerTeam")
+    hack_id = _create_hackathon(client, "org_owner@hackeval.ai")
 
     sub_res = client.post(
         "/api/submissions/upload",
@@ -191,7 +191,7 @@ def test_submission_ownership_checks(client):
 
     # An unrelated participant (not on the team) is denied
     outsider_res = client.post("/api/auth/register", json={
-        "email": "outsider@hackguard.ai",
+        "email": "outsider@hackeval.ai",
         "password": "password123",
         "full_name": "Outsider",
         "role": "participant"

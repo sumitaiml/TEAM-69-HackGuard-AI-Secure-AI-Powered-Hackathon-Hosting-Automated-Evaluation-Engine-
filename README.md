@@ -1,8 +1,8 @@
-# HackGuard AI
+# HackEval
 
 An automated hackathon evaluation platform: participants submit a project (GitHub repo, ZIP, slide deck, demo video), and the platform runs it through a real pipeline — static analysis (Semgrep/Pylint/ESLint), AST-based plagiarism detection, sandboxed Docker execution, Whisper transcription of the demo video, PPT slide extraction, and Gemini-based AI scoring — before organizers and judges review the results on a live leaderboard.
 
-See [`HackGuard_AI_PRD_Updated.md`](HackGuard_AI_PRD_Updated.md) for the full product spec.
+See [`HackEval_PRD_Updated.md`](HackEval_PRD_Updated.md) for the full product spec.
 
 ## Architecture
 
@@ -67,7 +67,7 @@ Full list of variables and their defaults: `backend/app/config.py`.
 docker compose exec api pytest -q
 ```
 
-Tests run against a real Postgres database (`hackguard_test`, created alongside the main `hackguard_db`) with Celery in eager mode — no separate test infrastructure needed beyond the compose stack already being up. Gemini/Docker-sandbox/Whisper calls are mocked at the service boundary in the automated suite; the real integrations are verified manually (see below).
+Tests run against a real Postgres database (`hackeval_test`, created alongside the main `hackeval_db`) with Celery in eager mode — no separate test infrastructure needed beyond the compose stack already being up. Gemini/Docker-sandbox/Whisper calls are mocked at the service boundary in the automated suite; the real integrations are verified manually (see below).
 
 ## Manual / end-to-end verification
 

@@ -86,7 +86,7 @@ export const LoginPage: React.FC = () => {
                 }}>
                   ⚡
                 </div>
-                <span style={{ fontSize: '18px', fontWeight: '800' }}>HackGuard AI</span>
+                <span style={{ fontSize: '18px', fontWeight: '800' }}>HackEval</span>
               </div>
               <span className="pill-badge" style={{ background: 'rgba(255,255,255,0.1)', color: '#9CA3AF' }}>v1.0 Live</span>
             </div>
@@ -339,7 +339,7 @@ export const LoginPage: React.FC = () => {
 
           {/* Footer Links */}
           <div style={{ display: 'flex', gap: '16px', fontSize: '11px', color: '#9CA3AF', justifyContent: 'center', marginTop: '20px' }}>
-            <span>© 2026 HackGuard AI</span>
+            <span>© 2026 HackEval</span>
           </div>
         </div>
     </div>

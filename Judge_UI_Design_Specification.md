@@ -1,4 +1,4 @@
-# HackGuard AI - Judge UI Design Specification
+# HackEval - Judge UI Design Specification
 
 **Document Version:** 1.0  
 **Design Style:** High-Contrast Dual Theme (Dark Navigation + Soft Light Canvas + Emerald/Teal/Ice Blue Metric Cards)  

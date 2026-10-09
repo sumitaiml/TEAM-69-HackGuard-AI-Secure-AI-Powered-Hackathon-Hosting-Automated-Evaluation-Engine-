@@ -18,19 +18,19 @@ def _create_org_and_hackathon(client, org_email, title):
 
 
 def test_register_rejects_judge_and_admin_roles(client):
-    judge_res = _register(client, "sneaky_judge@hackguard.ai", "Sneaky", role="judge")
+    judge_res = _register(client, "sneaky_judge@hackeval.ai", "Sneaky", role="judge")
     assert judge_res.status_code == 422
 
-    admin_res = _register(client, "sneaky_admin@hackguard.ai", "Sneaky", role="admin")
+    admin_res = _register(client, "sneaky_admin@hackeval.ai", "Sneaky", role="admin")
     assert admin_res.status_code == 422
 
 
 def test_judge_invite_accept_flow_end_to_end(client, db_session):
-    org_headers, hack_id = _create_org_and_hackathon(client, "invite_org@hackguard.ai", "Invite Flow Event")
+    org_headers, hack_id = _create_org_and_hackathon(client, "invite_org@hackeval.ai", "Invite Flow Event")
 
     invite_res = client.post(
         f"/api/hackathons/{hack_id}/invite-judge",
-        json={"email": "new_judge@hackguard.ai"},
+        json={"email": "new_judge@hackeval.ai"},
         headers=org_headers
     )
     assert invite_res.status_code == 201
@@ -42,7 +42,7 @@ def test_judge_invite_accept_flow_end_to_end(client, db_session):
     # GET invite details works before acceptance
     details_res = client.get(f"/api/auth/invite/{token}")
     assert details_res.status_code == 200
-    assert details_res.json()["email"] == "new_judge@hackguard.ai"
+    assert details_res.json()["email"] == "new_judge@hackeval.ai"
     assert details_res.json()["hackathon_title"] == "Invite Flow Event"
 
     accept_res = client.post(
@@ -52,7 +52,7 @@ def test_judge_invite_accept_flow_end_to_end(client, db_session):
     assert accept_res.status_code == 200
     body = accept_res.json()
     assert body["user"]["role"] == "judge"
-    assert body["user"]["email"] == "new_judge@hackguard.ai"
+    assert body["user"]["email"] == "new_judge@hackeval.ai"
     assert "access_token" in body
 
     # Re-accepting the same (now-used) token fails
@@ -69,11 +69,11 @@ def test_judge_invite_accept_flow_end_to_end(client, db_session):
 
 
 def test_judge_without_accepted_invite_is_denied(client):
-    part_res = _register(client, "unscoped_part@hackguard.ai", "Part")
+    part_res = _register(client, "unscoped_part@hackeval.ai", "Part")
     part_headers = {"Authorization": f"Bearer {part_res.json()['access_token']}"}
     team_id = client.post("/api/teams/create", json={"name": "UnscopedTeam"}, headers=part_headers).json()["id"]
 
-    org_headers, hack_id = _create_org_and_hackathon(client, "unscoped_org@hackguard.ai", "Unscoped Event")
+    org_headers, hack_id = _create_org_and_hackathon(client, "unscoped_org@hackeval.ai", "Unscoped Event")
     sub_res = client.post(
         "/api/submissions/upload",
         data={"hackathon_id": hack_id, "team_id": team_id, "readme_text": "# Project"},
@@ -82,10 +82,10 @@ def test_judge_without_accepted_invite_is_denied(client):
     sub_id = sub_res.json()["id"]
 
     # A judge invited to a DIFFERENT hackathon, not this one
-    other_org_headers, other_hack_id = _create_org_and_hackathon(client, "other_org@hackguard.ai", "A Different Event")
+    other_org_headers, other_hack_id = _create_org_and_hackathon(client, "other_org@hackeval.ai", "A Different Event")
     invite_res = client.post(
         f"/api/hackathons/{other_hack_id}/invite-judge",
-        json={"email": "outsider_judge2@hackguard.ai"},
+        json={"email": "outsider_judge2@hackeval.ai"},
         headers=other_org_headers
     )
     token = invite_res.json()["dev_invite_link"].split("token=")[1]
@@ -99,7 +99,7 @@ def test_judge_without_accepted_invite_is_denied(client):
     # An invited-and-accepted judge for THIS hackathon succeeds
     invite_res2 = client.post(
         f"/api/hackathons/{hack_id}/invite-judge",
-        json={"email": "scoped_judge@hackguard.ai"},
+        json={"email": "scoped_judge@hackeval.ai"},
         headers=org_headers
     )
     token2 = invite_res2.json()["dev_invite_link"].split("token=")[1]
@@ -111,7 +111,7 @@ def test_judge_without_accepted_invite_is_denied(client):
 
 
 def test_rubric_update_writes_audit_log(client, db_session):
-    org_headers, hack_id = _create_org_and_hackathon(client, "audit_org@hackguard.ai", "Audit Event")
+    org_headers, hack_id = _create_org_and_hackathon(client, "audit_org@hackeval.ai", "Audit Event")
 
     rubric_res = client.put(f"/api/hackathons/{hack_id}/rubric", json={
         "technical_complexity": 40.0, "innovation": 20.0, "ui_ux": 10.0,

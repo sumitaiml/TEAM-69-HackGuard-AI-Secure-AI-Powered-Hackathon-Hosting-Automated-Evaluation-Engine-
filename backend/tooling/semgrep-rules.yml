@@ -8,7 +8,7 @@ rules:
   # obvious, just observed behavior, so don't "simplify" this back to one
   # multi-language rule per concern.
 
-  - id: hackguard-eval-exec-usage-python
+  - id: hackeval-eval-exec-usage-python
     languages: [python]
     severity: ERROR
     message: >-
@@ -20,7 +20,7 @@ rules:
           - pattern: eval(...)
           - pattern: exec(...)
 
-  - id: hackguard-eval-exec-usage-js
+  - id: hackeval-eval-exec-usage-js
     languages: [javascript, typescript]
     severity: ERROR
     message: >-
@@ -29,7 +29,7 @@ rules:
     patterns:
       - pattern: eval(...)
 
-  - id: hackguard-hardcoded-secret-python
+  - id: hackeval-hardcoded-secret-python
     languages: [python]
     severity: ERROR
     message: "Possible hardcoded credential or secret key assigned as a literal string."
@@ -39,7 +39,7 @@ rules:
           metavariable: $VAR
           regex: (?i)^(secret|password|passwd|api_key|apikey|token|access_key)
 
-  - id: hackguard-hardcoded-secret-js
+  - id: hackeval-hardcoded-secret-js
     languages: [javascript, typescript]
     severity: ERROR
     message: "Possible hardcoded credential or secret key assigned as a literal string."
@@ -49,7 +49,7 @@ rules:
           metavariable: $VAR
           regex: (?i)^(secret|password|passwd|api_key|apikey|token|access_key)
 
-  - id: hackguard-sql-injection-risk
+  - id: hackeval-sql-injection-risk
     languages: [python]
     severity: WARNING
     message: >-

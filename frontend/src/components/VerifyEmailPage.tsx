@@ -31,7 +31,7 @@ export const VerifyEmailPage: React.FC = () => {
       <div style={{ padding: '40px', width: '100%', maxWidth: '440px', textAlign: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '24px' }}>
           <div style={{ background: '#18191C', color: '#FDF8E2', width: '38px', height: '38px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '18px' }}>⚡</div>
-          <span style={{ fontSize: '18px', fontWeight: 800 }}>HackGuard AI</span>
+          <span style={{ fontSize: '18px', fontWeight: 800 }}>HackEval</span>
         </div>
 
         {status === 'loading' && <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Verifying your email…</p>}
