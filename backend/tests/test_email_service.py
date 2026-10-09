@@ -3,10 +3,12 @@ import smtplib
 import pytest
 
 import app.services.email_service as email_service_module
-from app.services.email_service import send_judge_invite_email, send_password_reset_email
+from app.services.email_service import _from_header, send_judge_invite_email, send_password_reset_email
 
 
 class _FakeSMTPSuccess:
+    sent_messages = []
+
     def __init__(self, *a, **k):
         pass
 
@@ -22,8 +24,8 @@ class _FakeSMTPSuccess:
     def login(self, *a, **k):
         pass
 
-    def send_message(self, *a, **k):
-        pass
+    def send_message(self, message, *a, **k):
+        _FakeSMTPSuccess.sent_messages.append(message)
 
 
 class _FakeSMTPAuthFailure:
@@ -84,3 +86,27 @@ def test_password_reset_email_sends_successfully(smtp_configured, monkeypatch):
     monkeypatch.setattr(smtplib, "SMTP", _FakeSMTPSuccess)
     result = send_password_reset_email("user@example.com", "http://localhost/reset-password?token=xyz")
     assert result is None
+
+
+def test_from_header_includes_display_name_when_configured(monkeypatch):
+    monkeypatch.setattr(email_service_module.settings, "SMTP_FROM_NAME", "HackGuard AI")
+    monkeypatch.setattr(email_service_module.settings, "SMTP_FROM_ADDRESS", "no-reply@hackguard.ai")
+    assert _from_header() == "HackGuard AI <no-reply@hackguard.ai>"
+
+
+def test_from_header_falls_back_to_bare_address_without_a_name(monkeypatch):
+    monkeypatch.setattr(email_service_module.settings, "SMTP_FROM_NAME", "")
+    monkeypatch.setattr(email_service_module.settings, "SMTP_FROM_ADDRESS", "no-reply@hackguard.ai")
+    assert _from_header() == "no-reply@hackguard.ai"
+
+
+def test_sent_email_actually_carries_the_display_name(smtp_configured, monkeypatch):
+    monkeypatch.setattr(email_service_module.settings, "SMTP_FROM_NAME", "HackGuard AI")
+    monkeypatch.setattr(email_service_module.settings, "SMTP_FROM_ADDRESS", "no-reply@hackguard.ai")
+    _FakeSMTPSuccess.sent_messages = []
+    monkeypatch.setattr(smtplib, "SMTP", _FakeSMTPSuccess)
+
+    send_password_reset_email("user@example.com", "http://localhost/reset-password?token=xyz")
+
+    assert len(_FakeSMTPSuccess.sent_messages) == 1
+    assert _FakeSMTPSuccess.sent_messages[0]["From"] == "HackGuard AI <no-reply@hackguard.ai>"

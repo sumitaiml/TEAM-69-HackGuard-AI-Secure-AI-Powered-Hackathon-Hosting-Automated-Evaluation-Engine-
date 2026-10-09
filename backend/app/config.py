@@ -96,6 +96,11 @@ class Settings:
     SMTP_USERNAME: str = os.getenv("SMTP_USERNAME", "")
     SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
     SMTP_FROM_ADDRESS: str = os.getenv("SMTP_FROM_ADDRESS", "no-reply@hackguard.ai")
+    # Display name shown in the recipient's inbox (e.g. "HackGuard AI" rather
+    # than a raw email address). The address itself is still typically
+    # enforced/rewritten by the provider (Gmail included) to match the
+    # authenticated account - this only controls the friendly name part.
+    SMTP_FROM_NAME: str = os.getenv("SMTP_FROM_NAME", "HackGuard AI")
     SMTP_USE_TLS: bool = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
 
     @property
