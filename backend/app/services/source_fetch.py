@@ -48,6 +48,30 @@ def clone_repo(url: str, dest_dir: str, timeout: int = 30) -> str:
     return dest_dir
 
 
+def clone_repo_with_history(url: str, dest_dir: str, timeout: int = 60) -> str:
+    """Used only by the timeline/anti-cheating agent - clone_repo()'s
+    --depth 1 discards commit history entirely, which that agent needs to
+    read. --depth 200 is a deliberate bound (not a full clone): comfortably
+    covers any realistic hackathon project's history while still keeping
+    clone time bounded for a pathological repo with years of history."""
+    if not url.startswith("https://"):
+        raise SourceFetchError("Only https:// repository URLs are supported")
+    os.makedirs(dest_dir, exist_ok=True)
+    try:
+        subprocess.run(
+            ["git", "clone", "--depth", "200", url, dest_dir],
+            check=True,
+            timeout=timeout,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as e:
+        raise SourceFetchError(f"git clone (with history) failed: {e.stderr}")
+    except subprocess.TimeoutExpired:
+        raise SourceFetchError("git clone (with history) timed out")
+    return dest_dir
+
+
 def extract_submission_source(submission: "models.Submission") -> Optional[str]:
     """Returns a local directory containing the submission's source code,
     extracting/cloning it on first use and reusing the cached copy on

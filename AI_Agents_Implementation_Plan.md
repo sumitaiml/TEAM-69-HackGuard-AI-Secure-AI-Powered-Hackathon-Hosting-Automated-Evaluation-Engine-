@@ -1,7 +1,7 @@
-# HackGuard AI — Agentic Evaluation Modules: Implementation Plan
+# HackEval — Agentic Evaluation Modules: Implementation Plan
 
 **Document Version:** 2.1 — corrected per-agent timeout mechanism and closed the task-status/frontend stage-reporting gap
-**Status:** Design proposal — nothing in this document is implemented yet
+**Status:** Historical design proposal — all 4 agents described below have since been fully implemented and shipped (the "nothing implemented yet" line below is stale). The implementation took a simpler path than this document proposes in places (e.g. no separate `agent_runtime.py` module — the shared retry/fallback scaffold stayed inside the provider client files). It was also since migrated so 3 of these 4 agents plus the main scoring call run on **Groq** rather than Gemini (only the Pitch-Deck agent stays on Gemini, for its multimodal image support) — see `BUILD_DOCUMENTATION.md` §5 for the current, accurate architecture. This document is kept as a historical record of the original design reasoning, not a live reference.
 **Scope:** 4 of the 5 agents discussed are covered here. The **Judge Q&A / Score-Explanation Agent** is explicitly excluded per direction and should be scoped as its own follow-up document.
 **Agents covered:** Repo Verification Agent · Plagiarism Explainer Agent · Pitch-Deck Reasoning Agent · Anti-Cheating / Timeline Agent
 
@@ -174,7 +174,7 @@ class PlagiarismFileFingerprint(Base):
     )
 ```
 
-> **PostgreSQL dependency note:** this adds a *second* `ARRAY(Integer) + GIN index` construct to the schema (the first being the existing `PlagiarismFingerprint` table). SQLite was already incompatible with this project because of that first table — the stray `hackguard.db`/`test_hackguard.db` files at the repo root predate the Postgres migration and don't work with the current schema regardless. This change doesn't newly break SQLite; it just makes the existing hard Postgres dependency more explicit. No action needed beyond knowing there is no path back to SQLite for local dev or tests.
+> **PostgreSQL dependency note:** this adds a *second* `ARRAY(Integer) + GIN index` construct to the schema (the first being the existing `PlagiarismFingerprint` table). SQLite was already incompatible with this project because of that first table — the stray `hackeval.db`/`test_hackeval.db` files at the repo root predate the Postgres migration and don't work with the current schema regardless. This change doesn't newly break SQLite; it just makes the existing hard Postgres dependency more explicit. No action needed beyond knowing there is no path back to SQLite for local dev or tests.
 
 `run_plagiarism_check` keeps computing the existing whole-submission signature (that's what drives the fast GIN-shortlisted candidate search and the headline risk level — no change to that cost-performance characteristic) but *additionally* writes one row per file here. Only once a pair of submissions is already flagged MEDIUM/CRITICAL by the existing whole-submission check does anything touch this per-file table — so the extra storage/compute only happens for the submissions that already warranted a closer look.
 

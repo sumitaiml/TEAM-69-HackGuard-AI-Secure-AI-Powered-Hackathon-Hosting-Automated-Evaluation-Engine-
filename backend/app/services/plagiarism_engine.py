@@ -96,6 +96,46 @@ def _jaccard_from_signatures(sig_a: List[int], sig_b: List[int]) -> float:
     return matches / len(sig_a)
 
 
+def compute_per_file_signatures(source_dir: str) -> Dict[str, List[int]]:
+    """Used by the Plagiarism Explainer Agent (only ever called for
+    submissions the whole-submission check already flagged) - one MinHash
+    signature per file instead of one for the whole codebase, so there's a
+    concrete file-level candidate to point the explainer agent at."""
+    signatures: Dict[str, List[int]] = {}
+    for path in _iter_source_files(source_dir):
+        tokens = _tokenize_file(path)
+        if len(tokens) < _SHINGLE_SIZE:
+            continue
+        m = MinHash(num_perm=_NUM_PERM)
+        for i in range(len(tokens) - _SHINGLE_SIZE + 1):
+            shingle = " ".join(tokens[i:i + _SHINGLE_SIZE])
+            m.update(shingle.encode("utf-8"))
+        relative_path = os.path.relpath(path, source_dir)
+        signatures[relative_path] = [int(v) & 0x7FFFFFFF for v in m.hashvalues]
+    return signatures
+
+
+def ensure_per_file_fingerprints(db: Session, submission_id: str, source_dir: Optional[str]) -> None:
+    """Idempotent - only computes/stores if this submission has no per-file
+    rows yet, so re-evaluating an already-flagged submission doesn't
+    duplicate work."""
+    if not source_dir or not os.path.isdir(source_dir):
+        return
+    already_present = db.query(models.PlagiarismFileFingerprint.id).filter(
+        models.PlagiarismFileFingerprint.submission_id == submission_id
+    ).first()
+    if already_present:
+        return
+
+    for file_path, signature in compute_per_file_signatures(source_dir).items():
+        db.add(models.PlagiarismFileFingerprint(
+            submission_id=submission_id,
+            file_path=file_path,
+            minhash_signature=signature,
+        ))
+    db.commit()
+
+
 def run_plagiarism_check(db: Session, submission: "models.Submission", source_dir: Optional[str]) -> Dict[str, Any]:
     """Module 6 & 7: Inter-submission plagiarism detection via AST-tokenized
     MinHash fingerprints, shortlisted through a Postgres GIN index instead of
@@ -165,6 +205,21 @@ def run_plagiarism_check(db: Session, submission: "models.Submission", source_di
         risk_level = "CRITICAL"
     elif best_similarity > 40.0:
         risk_level = "MEDIUM"
+
+    # Per-file fingerprints (needed by the Plagiarism Explainer Agent) are
+    # only computed for submissions a flag actually warrants a closer look
+    # at - most submissions never reach this, keeping the extra storage/
+    # compute cost scoped to what matters. Imported locally to avoid a
+    # module-load-time circular import (source_fetch.py doesn't import this
+    # module, but importing it is only ever needed on this flagged path).
+    if risk_level in ("MEDIUM", "CRITICAL") and best_match_submission_id:
+        from app.services.source_fetch import extract_submission_source
+
+        ensure_per_file_fingerprints(db, submission.id, source_dir)
+        matched_submission = db.query(models.Submission).filter(models.Submission.id == best_match_submission_id).first()
+        if matched_submission:
+            matched_source_dir = extract_submission_source(matched_submission)
+            ensure_per_file_fingerprints(db, matched_submission.id, matched_source_dir)
 
     return {
         "status": "completed",

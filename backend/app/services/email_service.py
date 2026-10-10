@@ -1,11 +1,23 @@
 import logging
 import smtplib
 from email.message import EmailMessage
+from email.utils import formataddr
 from typing import Optional
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _from_header() -> str:
+    """Builds a proper 'Display Name <address>' From header (formataddr
+    handles quoting/escaping correctly, unlike raw string interpolation).
+    Note: most providers (Gmail included) still enforce that the address
+    itself matches the authenticated account, rewriting it if it doesn't -
+    but the display name portion passes through either way."""
+    if settings.SMTP_FROM_NAME:
+        return formataddr((settings.SMTP_FROM_NAME, settings.SMTP_FROM_ADDRESS))
+    return settings.SMTP_FROM_ADDRESS
 
 
 def send_judge_invite_email(to_email: str, invite_link: str, hackathon_title: str) -> Optional[str]:
@@ -19,20 +31,28 @@ def send_judge_invite_email(to_email: str, invite_link: str, hackathon_title: st
 
     message = EmailMessage()
     message["Subject"] = f"You've been invited to judge {hackathon_title}"
-    message["From"] = settings.SMTP_FROM_ADDRESS
+    message["From"] = _from_header()
     message["To"] = to_email
     message.set_content(
-        f"You've been invited to judge \"{hackathon_title}\" on HackGuard AI.\n\n"
+        f"You've been invited to judge \"{hackathon_title}\" on HackEval.\n\n"
         f"Accept your invitation here: {invite_link}\n\n"
         f"This link expires in {settings.JUDGE_INVITE_EXPIRY_DAYS} days."
     )
 
-    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-        if settings.SMTP_USE_TLS:
-            server.starttls()
-        if settings.SMTP_USERNAME:
-            server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
-        server.send_message(message)
+    try:
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+            if settings.SMTP_USE_TLS:
+                server.starttls()
+            if settings.SMTP_USERNAME:
+                server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+            server.send_message(message)
+    except (smtplib.SMTPException, OSError) as e:
+        # A bad password, an unreachable host, a provider outage - none of
+        # these should take down judge invites entirely. Degrade the same
+        # way as "SMTP not configured": log it and hand the link back
+        # directly so the feature still works end-to-end.
+        logger.error("SMTP send failed for %s, falling back to direct link: %s", to_email, e)
+        return invite_link
 
     return None
 
@@ -50,16 +70,20 @@ def _send_simple_email(to_email: str, subject: str, body: str, link: str) -> Opt
 
     message = EmailMessage()
     message["Subject"] = subject
-    message["From"] = settings.SMTP_FROM_ADDRESS
+    message["From"] = _from_header()
     message["To"] = to_email
     message.set_content(body)
 
-    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-        if settings.SMTP_USE_TLS:
-            server.starttls()
-        if settings.SMTP_USERNAME:
-            server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
-        server.send_message(message)
+    try:
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+            if settings.SMTP_USE_TLS:
+                server.starttls()
+            if settings.SMTP_USERNAME:
+                server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+            server.send_message(message)
+    except (smtplib.SMTPException, OSError) as e:
+        logger.error("SMTP send failed for %s, falling back to direct link: %s", to_email, e)
+        return link
 
     return None
 
@@ -67,7 +91,7 @@ def _send_simple_email(to_email: str, subject: str, body: str, link: str) -> Opt
 def send_password_reset_email(to_email: str, reset_link: str) -> Optional[str]:
     return _send_simple_email(
         to_email,
-        "Reset your HackGuard AI password",
+        "Reset your HackEval password",
         f"We received a request to reset your password.\n\n"
         f"Reset it here: {reset_link}\n\n"
         f"This link expires in {settings.PASSWORD_RESET_EXPIRY_HOURS} hours. "
@@ -79,7 +103,7 @@ def send_password_reset_email(to_email: str, reset_link: str) -> Optional[str]:
 def send_verification_email(to_email: str, verify_link: str) -> Optional[str]:
     return _send_simple_email(
         to_email,
-        "Verify your HackGuard AI email address",
-        f"Welcome to HackGuard AI! Please verify your email address:\n\n{verify_link}",
+        "Verify your HackEval email address",
+        f"Welcome to HackEval! Please verify your email address:\n\n{verify_link}",
         link=verify_link,
     )

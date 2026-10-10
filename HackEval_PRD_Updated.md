@@ -1,4 +1,4 @@
-# Product Requirements Document (PRD) - HackGuard AI
+# Product Requirements Document (PRD) - HackEval
 **Version:** 1.1 (Updated with Technical Implementation & Security Recommendations)  
 **Project Type:** AI + Full Stack + DevOps + Cybersecurity  
 **Domain:** General  
@@ -8,7 +8,7 @@
 
 ## 1. Product Overview
 
-HackGuard AI is an AI-powered hackathon management platform designed to automate the complete lifecycle of a hackathon—from participant registration to project evaluation and winner announcement.
+HackEval is an AI-powered hackathon management platform designed to automate the complete lifecycle of a hackathon—from participant registration to project evaluation and winner announcement.
 
 The platform combines secure code execution, AI-powered project analysis, plagiarism detection, automated scoring, and real-time leaderboards into one unified system.
 
@@ -258,7 +258,7 @@ The initial MVP release includes:
 
 ## 16. Zero-Cost Development & Deployment Strategy ($0 Budget Stack)
 
-HackGuard AI can be built, hosted, and operated entirely with **$0 capital expenditure** using open-source tools, self-hosted services, and cloud free tiers.
+HackEval can be built, hosted, and operated entirely with **$0 capital expenditure** using open-source tools, self-hosted services, and cloud free tiers.
 
 ### 16.1 Free Stack Architecture
 * **Frontend Hosting:** Vercel (Hobby Tier: 100% free hosting with custom domains & automated HTTPS).

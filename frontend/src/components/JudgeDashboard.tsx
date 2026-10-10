@@ -80,7 +80,7 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
   // ---- 1. Full AI Report Audit View ----
   if (activeTab === 'report') {
     return (
-      <div className="card">
+      <div key={activeTab} className="card animate-fade-in">
         <ReportHeader hackathons={hackathons} selectedHackathonId={selectedHackathonId} setSelectedHackathonId={setSelectedHackathonId} queue={queue} selectedSubmissionId={selectedSubmissionId} setSelectedSubmissionId={setSelectedSubmissionId} />
         <div className="tabs-header">
           <button className={`tab-btn ${activeReportTab === 'ai' ? 'active' : ''}`} onClick={() => setActiveReportTab('ai')}>🤖 AI Summary</button>
@@ -88,7 +88,7 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
           <button className={`tab-btn ${activeReportTab === 'docker' ? 'active' : ''}`} onClick={() => setActiveReportTab('docker')}>🐳 Docker Sandbox Logs</button>
           <button className={`tab-btn ${activeReportTab === 'video' ? 'active' : ''}`} onClick={() => setActiveReportTab('video')}>🎥 Video Transcript (Whisper)</button>
         </div>
-        {renderTabContent()}
+        <div key={activeReportTab} className="animate-fade-in">{renderTabContent()}</div>
       </div>
     );
   }
@@ -96,7 +96,7 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
   // ---- 2. Score Override Console View ----
   if (activeTab === 'override') {
     return (
-      <div className="card">
+      <div key={activeTab} className="card animate-fade-in">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
           <div>
             <h3 style={{ fontSize: '20px', fontWeight: '800' }}>Manual Score Override Console</h3>
@@ -145,7 +145,7 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
   const pendingCount = queue.filter((q) => q.status !== 'completed').length;
 
   return (
-    <div>
+    <div key={activeTab} className="animate-fade-in">
       <div className="metrics-row">
         <MetricCard
           label="Submissions in Queue"
@@ -194,7 +194,7 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
             <button className={`tab-btn ${activeReportTab === 'docker' ? 'active' : ''}`} onClick={() => setActiveReportTab('docker')}>🐳 Docker Sandbox Logs</button>
             <button className={`tab-btn ${activeReportTab === 'video' ? 'active' : ''}`} onClick={() => setActiveReportTab('video')}>🎥 Video Transcript (Whisper)</button>
           </div>
-          {renderTabContent()}
+          <div key={activeReportTab} className="animate-fade-in">{renderTabContent()}</div>
         </div>
 
         <div className="card">
@@ -229,6 +229,7 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
 
     if (activeReportTab === 'ai') {
       const scores = report.ai_scores_json;
+      const repoVerification = report.repo_verification_json;
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ background: '#F0F7FF', padding: '16px', borderRadius: '16px' }}>
@@ -243,6 +244,60 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
               <ul style={{ paddingLeft: '20px', fontSize: '13px', lineHeight: '1.5', color: 'var(--text-secondary)' }}>
                 {scores!.improvement_suggestions.map((s, i) => <li key={i}>{s}</li>)}
               </ul>
+            </div>
+          )}
+          {repoVerification?.status === 'completed' && (
+            <div style={{ background: '#F9FAFB', padding: '16px', borderRadius: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <h4 style={{ fontSize: '14px', fontWeight: '800' }}>README Claim Verification</h4>
+                <span className="pill-badge blue">{Math.round(repoVerification.confidence * 100)}% confidence</span>
+              </div>
+              {repoVerification.architecture_summary && (
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '10px' }}>{repoVerification.architecture_summary}</p>
+              )}
+              {repoVerification.claims_checked.length > 0 && (
+                <ul style={{ paddingLeft: '20px', fontSize: '12px', lineHeight: '1.6', color: '#374151', marginBottom: '10px' }}>
+                  {repoVerification.claims_checked.map((c, i) => (
+                    <li key={i}>
+                      <span className={`pill-badge ${c.verdict === 'confirmed' ? 'green' : c.verdict === 'contradicted' ? 'red' : 'blue'}`} style={{ marginRight: '6px' }}>{c.verdict}</span>
+                      {c.claim} — <span style={{ color: 'var(--text-secondary)' }}>{c.evidence}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {repoVerification.red_flags.length > 0 && (
+                <>
+                  <div style={{ fontSize: '12px', fontWeight: '800', color: '#B45309', marginBottom: '4px' }}>Red Flags</div>
+                  <ul style={{ paddingLeft: '20px', fontSize: '12px', color: '#B45309' }}>
+                    {repoVerification.red_flags.map((f, i) => <li key={i}>{f}</li>)}
+                  </ul>
+                </>
+              )}
+            </div>
+          )}
+          {scores?.pitch_deck_analysis?.status === 'completed' && (
+            <div style={{ background: '#F9FAFB', padding: '16px', borderRadius: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <h4 style={{ fontSize: '14px', fontWeight: '800' }}>Pitch Deck Breakdown</h4>
+                <span className="pill-badge blue">{Math.round(scores.pitch_deck_analysis.overall_narrative_score)}/100 narrative</span>
+              </div>
+              {scores.pitch_deck_analysis.is_relevant_to_project === false && (
+                <div style={{ background: '#FEE2E2', color: '#991B1B', padding: '10px 12px', borderRadius: '10px', fontSize: '12px', fontWeight: '600', marginBottom: '10px' }}>
+                  ⚠️ This deck does not appear to be about this project. {scores.pitch_deck_analysis.relevance_explanation}
+                </div>
+              )}
+              <ul style={{ paddingLeft: '20px', fontSize: '12px', lineHeight: '1.6', color: '#374151' }}>
+                {scores.pitch_deck_analysis.slides.map((s) => (
+                  <li key={s.slide_number}>
+                    Slide #{s.slide_number} <span className="pill-badge blue">{s.narrative_role}</span> {Math.round(s.clarity_score)}% clarity — <span style={{ color: 'var(--text-secondary)' }}>{s.notes}</span>
+                  </li>
+                ))}
+              </ul>
+              {scores.pitch_deck_analysis.missing_narrative_elements.length > 0 && (
+                <p style={{ fontSize: '12px', color: '#B45309', marginTop: '8px' }}>
+                  Missing: {scores.pitch_deck_analysis.missing_narrative_elements.join(', ')}
+                </p>
+              )}
             </div>
           )}
         </div>

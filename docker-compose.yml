@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: hackguard_db
+      POSTGRES_DB: hackeval_db
     ports:
       - "5432:5432"
     volumes:
@@ -29,11 +29,11 @@ services:
   migrate:
     build:
       context: ./backend
-    image: hackguard-backend:local
+    image: hackeval-backend:local
     command: alembic upgrade head
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/hackguard_db
-      TEST_DATABASE_URL: postgresql://postgres:postgres@postgres:5432/hackguard_test
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/hackeval_db
+      TEST_DATABASE_URL: postgresql://postgres:postgres@postgres:5432/hackeval_test
       REDIS_URL: redis://redis:6379/0
     env_file:
       - ./backend/.env
@@ -47,7 +47,7 @@ services:
   api:
     build:
       context: ./backend
-    image: hackguard-backend:local
+    image: hackeval-backend:local
     ports:
       # Host side moved off 8000: after a reboot Windows/Hyper-V can claim
       # 8000 into its dynamic port-exclusion range, which blocks Docker from
@@ -55,8 +55,8 @@ services:
       # avoids needing admin rights). Container still listens on 8000 internally.
       - "8090:8000"
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/hackguard_db
-      TEST_DATABASE_URL: postgresql://postgres:postgres@postgres:5432/hackguard_test
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/hackeval_db
+      TEST_DATABASE_URL: postgresql://postgres:postgres@postgres:5432/hackeval_test
       REDIS_URL: redis://redis:6379/0
       CORS_ORIGINS: http://localhost:5173
       WORKSPACE_ROOT: /workspace
@@ -76,11 +76,11 @@ services:
   worker:
     build:
       context: ./backend
-    image: hackguard-backend:local
+    image: hackeval-backend:local
     command: celery -A app.celery_app worker --loglevel=info
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/hackguard_db
-      TEST_DATABASE_URL: postgresql://postgres:postgres@postgres:5432/hackguard_test
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/hackeval_db
+      TEST_DATABASE_URL: postgresql://postgres:postgres@postgres:5432/hackeval_test
       REDIS_URL: redis://redis:6379/0
       WORKSPACE_ROOT: /workspace
     env_file:
@@ -122,4 +122,4 @@ volumes:
   # containers (Phase 5), so it can't be allowed to drift with the compose
   # project name.
   sandbox_workspace:
-    name: hackguard_sandbox_workspace
+    name: hackeval_sandbox_workspace

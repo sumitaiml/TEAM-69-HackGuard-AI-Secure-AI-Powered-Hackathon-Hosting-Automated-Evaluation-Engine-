@@ -1,4 +1,4 @@
-# HackGuard AI - Participant UI Design Specification
+# HackEval - Participant UI Design Specification
 
 **Document Version:** 1.0  
 **Design Style:** High-Contrast Dual Theme (Dark Navigation + Soft Light Canvas + Pastel Metric Cards)  
@@ -47,7 +47,7 @@ The Participant UI is modeled after modern high-end fintech dashboards, prioriti
 
 ### 2.1 Left Sidebar Navigation (`--sidebar-bg: #18191C`)
 * **Width:** `240px` fixed vertical bar.
-* **Top Header:** Rounded Cream Brand Badge (`#FDF8E2`) with HackGuard AI Icon.
+* **Top Header:** Rounded Cream Brand Badge (`#FDF8E2`) with HackEval Icon.
 * **Nav Options:**
   * 📊 **Dashboard / Overview** (Active State)
   * 👥 **Team Management**

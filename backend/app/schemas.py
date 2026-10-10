@@ -121,6 +121,7 @@ class SubmissionOut(BaseModel):
     live_url: Optional[str]
     status: str
     upload_metadata_json: Optional[Dict[str, Any]] = None
+    timeline_risk_json: Optional[Dict[str, Any]] = None
     submitted_at: datetime
 
 # --- Evaluation Schemas ---
@@ -132,6 +133,7 @@ class EvaluationReportOut(BaseModel):
     static_analysis_json: Optional[Dict[str, Any]]
     plagiarism_json: Optional[Dict[str, Any]]
     ai_scores_json: Optional[Dict[str, Any]]
+    repo_verification_json: Optional[Dict[str, Any]] = None
     final_score: float
     judge_override_json: Optional[Dict[str, Any]]
     judge_comments: Optional[str]
@@ -150,6 +152,21 @@ class JudgeInviteOut(BaseModel):
     status: str
     expires_at: datetime
     created_at: datetime
+
+class JudgeInviteCsvRow(BaseModel):
+    email: str
+    dev_invite_link: Optional[str] = None
+
+class JudgeInviteCsvSkip(BaseModel):
+    email: str
+    reason: str
+
+class JudgeInviteCsvResult(BaseModel):
+    total_rows: int
+    invited_count: int
+    skipped_count: int
+    invited: List[JudgeInviteCsvRow]
+    skipped: List[JudgeInviteCsvSkip]
 
 class InviteDetailsOut(BaseModel):
     email: str

@@ -1,6 +1,6 @@
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-const TOKEN_KEY = 'hackguard_token';
+const TOKEN_KEY = 'hackeval_token';
 
 export function getToken(): string | null {
   try {

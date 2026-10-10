@@ -42,6 +42,19 @@ app.dependency_overrides[get_db] = override_get_db
 
 
 @pytest.fixture(autouse=True)
+def force_smtp_disabled_in_tests(monkeypatch):
+    """Tests must never depend on (or be affected by) the developer's real
+    local SMTP credentials in backend/.env - without this, a dev who's
+    configured real SMTP for manual testing (see email_service.py) would
+    see the test suite start making genuine outbound email attempts to
+    fake @hackeval.ai test addresses. Gmail (and most providers) accept
+    those for relay without a synchronous bounce, so the send reports
+    success, silently breaking every test that expects the dev-link
+    fallback - exactly what happened the first time this was missed."""
+    monkeypatch.setattr(settings, "SMTP_HOST", "")
+
+
+@pytest.fixture(autouse=True)
 def setup_test_db():
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)

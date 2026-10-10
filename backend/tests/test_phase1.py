@@ -8,7 +8,7 @@ def test_root_endpoint(client):
 def test_user_registration_and_login(client):
     # Register Participant
     reg_res = client.post("/api/auth/register", json={
-        "email": "participant@hackguard.ai",
+        "email": "participant@hackeval.ai",
         "password": "password123",
         "full_name": "Alice Dev",
         "role": "participant"
@@ -16,11 +16,11 @@ def test_user_registration_and_login(client):
     assert reg_res.status_code == 201
     data = reg_res.json()
     assert "access_token" in data
-    assert data["user"]["email"] == "participant@hackguard.ai"
+    assert data["user"]["email"] == "participant@hackeval.ai"
 
     # Login
     login_res = client.post("/api/auth/login", data={
-        "username": "participant@hackguard.ai",
+        "username": "participant@hackeval.ai",
         "password": "password123"
     })
     assert login_res.status_code == 200
@@ -34,7 +34,7 @@ def test_user_registration_and_login(client):
 def test_team_creation_and_joining(client):
     # Register Leader
     leader_res = client.post("/api/auth/register", json={
-        "email": "leader@hackguard.ai",
+        "email": "leader@hackeval.ai",
         "password": "password123",
         "full_name": "Leader Bob",
         "role": "participant"
@@ -50,7 +50,7 @@ def test_team_creation_and_joining(client):
 
     # Register Member
     member_res = client.post("/api/auth/register", json={
-        "email": "member@hackguard.ai",
+        "email": "member@hackeval.ai",
         "password": "password123",
         "full_name": "Member Charlie",
         "role": "participant"
@@ -65,7 +65,7 @@ def test_team_creation_and_joining(client):
 def test_organizer_hackathon_creation_and_rubric(client):
     # Register Organizer
     org_res = client.post("/api/auth/register", json={
-        "email": "organizer@hackguard.ai",
+        "email": "organizer@hackeval.ai",
         "password": "password123",
         "full_name": "Prof. Dave",
         "role": "organizer"
@@ -107,7 +107,7 @@ def test_non_organizer_cannot_create_hackathon_or_edit_rubric(client):
     # A plain participant must still be blocked (require_role dependency, not
     # the old inline role check, now guards these routes)
     part_res = client.post("/api/auth/register", json={
-        "email": "not_an_organizer@hackguard.ai",
+        "email": "not_an_organizer@hackeval.ai",
         "password": "password123",
         "full_name": "Random Participant",
         "role": "participant"
@@ -119,7 +119,7 @@ def test_non_organizer_cannot_create_hackathon_or_edit_rubric(client):
     assert create_res.status_code == 403
 
     org_res = client.post("/api/auth/register", json={
-        "email": "real_organizer@hackguard.ai",
+        "email": "real_organizer@hackeval.ai",
         "password": "password123",
         "full_name": "Real Organizer",
         "role": "organizer"

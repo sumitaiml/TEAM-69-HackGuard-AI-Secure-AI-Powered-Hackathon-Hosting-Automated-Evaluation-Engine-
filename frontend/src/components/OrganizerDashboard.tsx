@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MetricCard } from './MetricCard';
-import { Users, ShieldAlert, Sliders, Trophy, Download, Send, Plus, Calendar, UserPlus } from 'lucide-react';
-import type { HackathonItem, LeaderboardEntry, RubricWeights } from '../lib/types';
+import { Users, ShieldAlert, Sliders, Trophy, Download, Send, Plus, Calendar, UserPlus, Upload } from 'lucide-react';
+import type { HackathonItem, LeaderboardEntry, RubricWeights, JudgeInviteCsvResult } from '../lib/types';
 import { api } from '../lib/apiClient';
 import { useAsyncAction } from '../hooks/useAsyncAction';
 
@@ -42,6 +42,8 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
   const [weights, setWeights] = useState<RubricWeights | null>(null);
   const [inviteEmail, setInviteEmail] = useState('');
   const [devInviteLink, setDevInviteLink] = useState<string | null>(null);
+  const [csvResult, setCsvResult] = useState<JudgeInviteCsvResult | null>(null);
+  const csvInputRef = useRef<HTMLInputElement>(null);
 
   const activeHackathon = hackathons.find((h) => h.id === selectedHackathonId) || null;
 
@@ -70,6 +72,33 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
     setDevInviteLink(res.dev_invite_link || null);
     setInviteEmail('');
   });
+
+  const inviteJudgesCsv = useAsyncAction(async (file: File) => {
+    if (!activeHackathon) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await api.post<JudgeInviteCsvResult>(`/api/hackathons/${activeHackathon.id}/invite-judges-csv`, formData);
+    setCsvResult(res);
+  });
+
+  const handleCsvFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file name after a retry
+    if (file) {
+      setCsvResult(null);
+      inviteJudgesCsv.run(file);
+    }
+  };
+
+  const downloadCsvTemplate = () => {
+    const blob = new Blob(['email\njudge1@example.com\njudge2@example.com\n'], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'judge-invite-template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,7 +132,7 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
   // ---- 1. Rubric Configurator View ----
   if (activeTab === 'rubric') {
     return (
-      <div className="card animate-fade-in">
+      <div key={activeTab} className="card animate-fade-in">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
           <div>
             <h3 style={{ fontSize: '20px', fontWeight: '800' }}>Evaluation Rubric Configurator</h3>
@@ -151,12 +180,12 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
   // ---- 2. Fraud & Plagiarism View ----
   if (activeTab === 'fraud') {
     return (
-      <div className="card animate-fade-in">
+      <div key={activeTab} className="card animate-fade-in">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
           <div>
             <h3 style={{ fontSize: '20px', fontWeight: '800' }}>Plagiarism & Fraud Detection Monitor</h3>
             <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-              AST/MinHash cross-submission plagiarism flags for {activeHackathon?.title || '—'}
+              AST/MinHash cross-submission plagiarism flags for {activeHackathon?.title || '—'}. AI explanations are flagged for organizer review, not a finding of fact.
             </p>
           </div>
           <span className="pill-badge red">{criticalCount} High Risk Alerts</span>
@@ -165,11 +194,11 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
         <div className="data-table-container">
           <table className="data-table">
             <thead>
-              <tr><th>Team Name</th><th>Repository</th><th>Similarity</th><th>Risk Level</th><th>Actions</th></tr>
+              <tr><th>Team Name</th><th>Repository</th><th>Similarity</th><th>Risk Level</th><th>AI Explanation</th><th>Actions</th></tr>
             </thead>
             <tbody>
               {leaderboard.length === 0 && (
-                <tr><td colSpan={5} style={{ color: 'var(--text-secondary)' }}>No submissions yet.</td></tr>
+                <tr><td colSpan={6} style={{ color: 'var(--text-secondary)' }}>No submissions yet.</td></tr>
               )}
               {leaderboard.map((item) => (
                 <tr key={item.submission_id}>
@@ -177,6 +206,16 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
                   <td style={{ color: 'var(--text-secondary)' }}>{item.github_url || '—'}</td>
                   <td><span style={{ fontWeight: '800', color: item.plagiarism_risk === 'CRITICAL' ? '#EF4444' : '#10B981' }}>{item.plagiarism_percentage}%</span></td>
                   <td><span className={`pill-badge ${item.plagiarism_risk === 'CRITICAL' ? 'red' : item.plagiarism_risk === 'MEDIUM' ? 'amber' : 'green'}`}>{item.plagiarism_risk}</span></td>
+                  <td style={{ maxWidth: '280px' }}>
+                    {item.plagiarism_explanation ? (
+                      <>
+                        <span className={`pill-badge ${item.plagiarism_explanation.verdict === 'probable_copying' ? 'red' : item.plagiarism_explanation.verdict === 'likely_shared_boilerplate' ? 'green' : 'blue'}`} style={{ marginBottom: '4px', display: 'inline-block' }}>
+                          {item.plagiarism_explanation.verdict.replace(/_/g, ' ')}
+                        </span>
+                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{item.plagiarism_explanation.explanation}</div>
+                      </>
+                    ) : '—'}
+                  </td>
                   <td>
                     {item.github_url && (
                       <a className="role-btn" style={{ fontSize: '12px', textDecoration: 'none', display: 'inline-block' }} href={item.github_url} target="_blank" rel="noreferrer">
@@ -217,6 +256,90 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
             </tbody>
           </table>
         </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '28px 0 12px' }}>
+          <div>
+            <h4 style={{ fontSize: '16px', fontWeight: '800' }}>Submission Timeline Check</h4>
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              Flags repos whose commit history predates the hackathon start (or an unusually large first commit) - catches a pre-built project submitted as new, which plagiarism matching alone can't. For organizer review, not an automatic penalty.
+            </p>
+          </div>
+        </div>
+        <div className="data-table-container">
+          <table className="data-table">
+            <thead>
+              <tr><th>Team Name</th><th>Risk Level</th><th>Reasoning</th></tr>
+            </thead>
+            <tbody>
+              {leaderboard.length === 0 && (
+                <tr><td colSpan={3} style={{ color: 'var(--text-secondary)' }}>No submissions yet.</td></tr>
+              )}
+              {leaderboard.map((item) => (
+                <tr key={item.submission_id}>
+                  <td style={{ fontWeight: '700' }}>{item.team_name}</td>
+                  <td><span className={`pill-badge ${item.timeline_risk_level === 'HIGH' ? 'red' : item.timeline_risk_level === 'MEDIUM' ? 'amber' : 'green'}`}>{item.timeline_risk_level}</span></td>
+                  <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{item.timeline_reasoning || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '28px 0 12px' }}>
+          <div>
+            <h4 style={{ fontSize: '16px', fontWeight: '800' }}>README Claim Verification</h4>
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              Checks whether the README's claims (tech stack, architecture, features) match the actual codebase. Full per-claim breakdown is on the Judge report reader - this is a summary only.
+            </p>
+          </div>
+        </div>
+        <div className="data-table-container">
+          <table className="data-table">
+            <thead>
+              <tr><th>Team Name</th><th>Claims Checked</th><th>Red Flags</th></tr>
+            </thead>
+            <tbody>
+              {leaderboard.length === 0 && (
+                <tr><td colSpan={3} style={{ color: 'var(--text-secondary)' }}>No submissions yet.</td></tr>
+              )}
+              {leaderboard.map((item) => (
+                <tr key={item.submission_id}>
+                  <td style={{ fontWeight: '700' }}>{item.team_name}</td>
+                  <td style={{ color: 'var(--text-secondary)' }}>{item.repo_claims_checked_count}</td>
+                  <td><span className={`pill-badge ${item.repo_red_flags_count > 0 ? 'amber' : 'green'}`}>{item.repo_red_flags_count}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '28px 0 12px' }}>
+          <div>
+            <h4 style={{ fontSize: '16px', fontWeight: '800' }}>Pitch Deck Relevance Check</h4>
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              Checks whether the uploaded presentation is actually about this project (vs. an unrelated or placeholder file) by comparing it against the README. A flagged deck's presentation score is zeroed out - it still doesn't affect technical/innovation/documentation scores, which are judged independently.
+            </p>
+          </div>
+        </div>
+        <div className="data-table-container">
+          <table className="data-table">
+            <thead>
+              <tr><th>Team Name</th><th>Deck Relevant?</th><th>Explanation</th></tr>
+            </thead>
+            <tbody>
+              {leaderboard.length === 0 && (
+                <tr><td colSpan={3} style={{ color: 'var(--text-secondary)' }}>No submissions yet.</td></tr>
+              )}
+              {leaderboard.map((item) => (
+                <tr key={item.submission_id}>
+                  <td style={{ fontWeight: '700' }}>{item.team_name}</td>
+                  <td><span className={`pill-badge ${item.pitch_deck_relevant ? 'green' : 'red'}`}>{item.pitch_deck_relevant ? 'Relevant' : 'Flagged'}</span></td>
+                  <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{item.pitch_deck_relevance_explanation || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     );
   }
@@ -224,7 +347,7 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
   // ---- 3. Leaderboard View ----
   if (activeTab === 'leaderboard') {
     return (
-      <div className="card animate-fade-in">
+      <div key={activeTab} className="card animate-fade-in">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
           <div>
             <h3 style={{ fontSize: '20px', fontWeight: '800' }}>Results & Winner Publisher</h3>
@@ -271,7 +394,7 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
 
   // ---- 4. Default Command Center Overview ----
   return (
-    <div className="animate-fade-in">
+    <div key={activeTab} className="animate-fade-in">
       <div style={{
         background: '#FFFFFF', borderRadius: '24px', padding: '20px 28px', marginBottom: '24px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -403,6 +526,59 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
               <p style={{ fontSize: '11px', color: '#9CA3AF', wordBreak: 'break-all' }}>
                 No email provider configured - share this link directly: <a href={devInviteLink} style={{ color: '#60A5FA' }}>{devInviteLink}</a>
               </p>
+            )}
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '16px 0' }}>
+              <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
+              <span style={{ fontSize: '11px', color: '#6B7280', fontWeight: '700' }}>OR BULK INVITE</span>
+              <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
+            </div>
+
+            <p style={{ fontSize: '12px', color: '#9CA3AF', marginBottom: '10px' }}>
+              Upload a CSV with an <code>email</code> column to invite many judges at once.{' '}
+              <button type="button" onClick={downloadCsvTemplate} style={{ background: 'none', border: 'none', color: '#60A5FA', fontSize: '12px', fontWeight: '700', cursor: 'pointer', padding: 0 }}>
+                Download template
+              </button>
+            </p>
+
+            <input ref={csvInputRef} type="file" accept=".csv" onChange={handleCsvFileChange} style={{ display: 'none' }} />
+            <button
+              className="role-btn"
+              style={{ width: '100%', justifyContent: 'center', background: 'transparent', borderColor: '#374151', color: '#FFFFFF' }}
+              disabled={inviteJudgesCsv.isLoading || !activeHackathon}
+              onClick={() => csvInputRef.current?.click()}
+            >
+              <Upload size={14} /> {inviteJudgesCsv.isLoading ? 'Uploading…' : 'Upload CSV'}
+            </button>
+
+            {inviteJudgesCsv.error && <p style={{ color: '#F87171', fontSize: '12px', marginTop: '8px' }}>{inviteJudgesCsv.error}</p>}
+
+            {csvResult && (
+              <div style={{ marginTop: '12px', background: '#111', borderRadius: '12px', padding: '12px', fontSize: '12px' }}>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: csvResult.skipped.length ? '8px' : 0 }}>
+                  <span className="pill-badge green">{csvResult.invited_count} invited</span>
+                  {csvResult.skipped_count > 0 && <span className="pill-badge amber">{csvResult.skipped_count} skipped</span>}
+                </div>
+                {csvResult.skipped.length > 0 && (
+                  <ul style={{ paddingLeft: '18px', color: '#9CA3AF', lineHeight: '1.6' }}>
+                    {csvResult.skipped.map((row, i) => (
+                      <li key={i}>{row.email} — {row.reason}</li>
+                    ))}
+                  </ul>
+                )}
+                {csvResult.invited.some((row) => row.dev_invite_link) && (
+                  <div style={{ marginTop: '8px' }}>
+                    <p style={{ color: '#6B7280', marginBottom: '4px' }}>No email provider configured - share these links directly:</p>
+                    <ul style={{ paddingLeft: '18px', lineHeight: '1.6' }}>
+                      {csvResult.invited.filter((row) => row.dev_invite_link).map((row, i) => (
+                        <li key={i} style={{ wordBreak: 'break-all' }}>
+                          {row.email}: <a href={row.dev_invite_link} style={{ color: '#60A5FA' }}>{row.dev_invite_link}</a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

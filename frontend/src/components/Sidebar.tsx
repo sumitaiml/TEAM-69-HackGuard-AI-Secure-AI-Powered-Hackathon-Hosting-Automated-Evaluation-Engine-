@@ -21,13 +21,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentRole, activeTab, setAct
   return (
     <aside style={{
       width: '260px',
+      flexShrink: 0,
       backgroundColor: 'var(--sidebar-bg)',
       color: '#FFFFFF',
       padding: '32px 24px',
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'space-between',
-      minHeight: '100vh'
+      height: '100vh',
+      overflowY: 'auto'
     }}>
       <div>
         {/* Brand Header */}
@@ -47,7 +49,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentRole, activeTab, setAct
             ⚡
           </div>
           <div>
-            <h2 style={{ fontSize: '18px', fontWeight: '800', lineHeight: '1.2' }}>HackGuard AI</h2>
+            <h2 style={{ fontSize: '18px', fontWeight: '800', lineHeight: '1.2' }}>HackEval</h2>
             <span style={{ fontSize: '11px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               {currentRole} Portal
             </span>

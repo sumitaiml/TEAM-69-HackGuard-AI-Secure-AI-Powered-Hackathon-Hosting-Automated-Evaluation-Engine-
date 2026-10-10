@@ -8,7 +8,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ title }) => {
   return (
     <header className="top-header">
-      <h1 className="header-title">{title}</h1>
+      <h1 key={title} className="header-title animate-fade-in">{title}</h1>
 
       <div className="header-actions">
         {/* Search */}

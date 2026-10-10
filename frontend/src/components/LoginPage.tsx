@@ -53,25 +53,12 @@ export const LoginPage: React.FC = () => {
   return (
     <div style={{
       minHeight: '100vh',
-      backgroundColor: 'var(--canvas-bg)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '24px'
+      width: '100%',
+      backgroundColor: '#FFFFFF',
+      display: 'grid',
+      gridTemplateColumns: '480px 1fr',
     }}>
-      {/* Outer Card Container */}
-      <div style={{
-        background: '#FFFFFF',
-        borderRadius: '32px',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.06)',
-        border: '1px solid rgba(229, 231, 235, 0.8)',
-        display: 'grid',
-        gridTemplateColumns: '440px 520px',
-        width: '960px',
-        maxWidth: '100%',
-        overflow: 'hidden'
-      }}>
-        {/* Left Dark Panel */}
+      {/* Left Dark Panel */}
         <div style={{
           backgroundColor: '#18191C',
           color: '#FFFFFF',
@@ -99,7 +86,7 @@ export const LoginPage: React.FC = () => {
                 }}>
                   ⚡
                 </div>
-                <span style={{ fontSize: '18px', fontWeight: '800' }}>HackGuard AI</span>
+                <span style={{ fontSize: '18px', fontWeight: '800' }}>HackEval</span>
               </div>
               <span className="pill-badge" style={{ background: 'rgba(255,255,255,0.1)', color: '#9CA3AF' }}>v1.0 Live</span>
             </div>
@@ -138,8 +125,8 @@ export const LoginPage: React.FC = () => {
         </div>
 
         {/* Right Light Form Panel */}
-        <div style={{ padding: '40px 48px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-          <div>
+        <div style={{ padding: '40px 48px', display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%', maxWidth: '560px', width: '100%', margin: '0 auto' }}>
+          <div style={{ width: '100%' }}>
             {/* Header Controls */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
               {mode !== 'forgot' && (
@@ -352,10 +339,10 @@ export const LoginPage: React.FC = () => {
 
           {/* Footer Links */}
           <div style={{ display: 'flex', gap: '16px', fontSize: '11px', color: '#9CA3AF', justifyContent: 'center', marginTop: '20px' }}>
-            <span>© 2026 HackGuard AI</span>
+            <span>© 2026 HackEval</span>
           </div>
         </div>
-      </div>
     </div>
   );
 };
+

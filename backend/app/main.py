@@ -11,7 +11,7 @@ from app.routers import auth_router, team_router, hackathon_router, submission_r
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    description="HackGuard AI Backend API Engine"
+    description="HackEval Backend API Engine"
 )
 
 # CORS Middleware

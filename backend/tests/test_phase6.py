@@ -39,7 +39,7 @@ def test_ppt_analysis_extracts_real_slide_text(tmp_path):
     assert "Manual hackathon judging is slow and inconsistent." in result["slides"][0]["text"]
     assert "Our Solution" in result["slides"][1]["text"]
     # Proves this is real extraction, not the old hardcoded marketing copy
-    assert "HackGuard" not in str(result)
+    assert "HackEval" not in str(result)
 
 
 def test_ppt_analysis_handles_corrupt_file(tmp_path):

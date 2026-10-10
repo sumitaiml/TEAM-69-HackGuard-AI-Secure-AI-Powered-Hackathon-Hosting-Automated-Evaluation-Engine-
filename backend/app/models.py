@@ -16,7 +16,7 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     full_name = Column(String, nullable=False)
     role = Column(String, default="participant")  # participant, organizer, judge
-    is_verified = Column(Boolean, default=False)
+    is_verified = Column(Boolean, nullable=False, default=False)
     verification_token = Column(String, nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
@@ -76,6 +76,10 @@ class Submission(Base):
     live_url = Column(String, nullable=True)
     status = Column(String, default="submitted") # submitted, evaluating, completed, failed
     upload_metadata_json = Column(JSON, nullable=True)  # original filenames/sizes/video duration
+    # Commit-timeline anti-cheating check (timeline_agent.py) - a property of
+    # the submission's provenance, checked once per evaluation run, not a
+    # per-report concern like static_analysis_json/ai_scores_json are.
+    timeline_risk_json = Column(JSON, nullable=True)
     submitted_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     team = relationship("Team", back_populates="submissions")
@@ -90,6 +94,11 @@ class EvaluationReport(Base):
     static_analysis_json = Column(JSON, nullable=True)
     plagiarism_json = Column(JSON, nullable=True)
     ai_scores_json = Column(JSON, nullable=True)
+    # Repo Verification Agent output (repo_verification_agent.py) - kept as
+    # its own column rather than nested inside static_analysis_json, since
+    # it's a qualitative/LLM output, not deterministic tool output, matching
+    # how static_analysis_json vs ai_scores_json are already kept separate.
+    repo_verification_json = Column(JSON, nullable=True)
     final_score = Column(Float, default=0.0)
     judge_override_json = Column(JSON, nullable=True)
     judge_comments = Column(Text, nullable=True)
@@ -112,6 +121,26 @@ class PlagiarismFingerprint(Base):
 
     __table_args__ = (
         Index("ix_plagiarism_fingerprints_minhash_gin", "minhash_signature", postgresql_using="gin"),
+    )
+
+class PlagiarismFileFingerprint(Base):
+    __tablename__ = "plagiarism_file_fingerprints"
+
+    # Per-file MinHash signatures, unlike PlagiarismFingerprint above which
+    # is one signature for a submission's whole codebase concatenated - that
+    # aggregate signature is all the fast GIN-shortlisted whole-submission
+    # risk-level check needs, but gives the Plagiarism Explainer Agent
+    # nothing concrete to point at. Only computed for submissions that
+    # whole-submission check has already flagged MEDIUM/CRITICAL (see
+    # plagiarism_engine.py) - not every submission gets rows here.
+    id = Column(String, primary_key=True, default=generate_uuid)
+    submission_id = Column(String, ForeignKey("submissions.id"), nullable=False)
+    file_path = Column(String, nullable=False)
+    minhash_signature = Column(ARRAY(Integer), nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_plagiarism_file_fingerprints_gin", "minhash_signature", postgresql_using="gin"),
     )
 
 class JudgeInvite(Base):

@@ -95,9 +95,23 @@ def get_hackathon_leaderboard(hackathon_id: str, db: Session = Depends(get_db)):
         score = report.final_score if report else 0.0
         plag_risk = report.plagiarism_json.get("risk_level", "LOW") if report and report.plagiarism_json else "LOW"
         plag_pct = report.plagiarism_json.get("similarity_percentage", 0.0) if report and report.plagiarism_json else 0.0
+        plag_explanation = report.plagiarism_json.get("explanation") if report and report.plagiarism_json else None
         ai_code_detection = report.static_analysis_json.get("ai_generated_code_detection") if report and report.static_analysis_json else None
         ai_code_risk = ai_code_detection.get("risk_level", "UNKNOWN") if ai_code_detection else "UNKNOWN"
         ai_code_pct = ai_code_detection.get("estimated_ai_usage_percentage") if ai_code_detection else None
+        timeline_risk = sub.timeline_risk_json or {}
+        timeline_risk_level = timeline_risk.get("risk_level", "LOW")
+        timeline_reasoning = timeline_risk.get("reasoning", "")
+        repo_verification = report.repo_verification_json if report else None
+        repo_red_flags_count = len(repo_verification.get("red_flags", [])) if repo_verification else 0
+        repo_claims_checked_count = len(repo_verification.get("claims_checked", [])) if repo_verification else 0
+        pitch_deck_analysis = (report.ai_scores_json or {}).get("pitch_deck_analysis") if report else None
+        pitch_deck_relevant = (
+            pitch_deck_analysis.get("is_relevant_to_project", True) if pitch_deck_analysis else True
+        )
+        pitch_deck_relevance_explanation = (
+            pitch_deck_analysis.get("relevance_explanation", "") if pitch_deck_analysis else ""
+        )
         # Module 12 wants per-parameter scores on the leaderboard itself, not
         # just buried in the individual report - judge overrides take
         # precedence over the raw AI scores, same as final_score does above.
@@ -119,8 +133,15 @@ def get_hackathon_leaderboard(hackathon_id: str, db: Session = Depends(get_db)):
             "parameter_scores": param_scores,
             "plagiarism_risk": plag_risk,
             "plagiarism_percentage": plag_pct,
+            "plagiarism_explanation": plag_explanation,
             "ai_code_risk": ai_code_risk,
             "ai_code_usage_percentage": ai_code_pct,
+            "timeline_risk_level": timeline_risk_level,
+            "timeline_reasoning": timeline_reasoning,
+            "repo_red_flags_count": repo_red_flags_count,
+            "repo_claims_checked_count": repo_claims_checked_count,
+            "pitch_deck_relevant": pitch_deck_relevant,
+            "pitch_deck_relevance_explanation": pitch_deck_relevance_explanation,
             "status": sub.status,
             "submitted_at": sub.submitted_at
         })

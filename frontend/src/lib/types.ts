@@ -62,6 +62,7 @@ export interface Submission {
   live_url: string | null;
   status: string;
   upload_metadata_json: Record<string, UploadMetadataEntry> | null;
+  timeline_risk_json: { status: string; risk_level: string; reasoning: string; suspicious_commits: string[] } | null;
   submitted_at: string;
 }
 
@@ -83,6 +84,15 @@ export interface AiScores {
     slides?: { slide_number: number; text: string; has_image: boolean }[];
     reason?: string;
   };
+  pitch_deck_analysis?: {
+    status: string;
+    slides: { slide_number: number; narrative_role: string; clarity_score: number; notes: string }[];
+    missing_narrative_elements: string[];
+    overall_narrative_score: number;
+    slides_inspected_visually?: number[];
+    is_relevant_to_project?: boolean;
+    relevance_explanation?: string;
+  };
 }
 
 export interface EvaluationReport {
@@ -91,6 +101,13 @@ export interface EvaluationReport {
   static_analysis_json: Record<string, any> | null;
   plagiarism_json: Record<string, any> | null;
   ai_scores_json: AiScores | null;
+  repo_verification_json: {
+    status: string;
+    claims_checked: { claim: string; verdict: string; evidence: string }[];
+    architecture_summary: string;
+    red_flags: string[];
+    confidence: number;
+  } | null;
   final_score: number;
   judge_override_json: {
     overridden_by: string;
@@ -113,8 +130,15 @@ export interface LeaderboardEntry {
   parameter_scores: Record<string, number> | null;
   plagiarism_risk: string;
   plagiarism_percentage: number;
+  plagiarism_explanation: { verdict: string; explanation: string; cited_file_pairs: string[] } | null;
   ai_code_risk: string;
   ai_code_usage_percentage: number | null;
+  timeline_risk_level: string;
+  timeline_reasoning: string;
+  repo_red_flags_count: number;
+  repo_claims_checked_count: number;
+  pitch_deck_relevant: boolean;
+  pitch_deck_relevance_explanation: string;
   status: string;
   submitted_at: string;
   rank: number;
@@ -135,6 +159,14 @@ export interface JudgeInviteOut {
   expires_at: string;
   created_at: string;
   dev_invite_link?: string;
+}
+
+export interface JudgeInviteCsvResult {
+  total_rows: number;
+  invited_count: number;
+  skipped_count: number;
+  invited: { email: string; dev_invite_link?: string }[];
+  skipped: { email: string; reason: string }[];
 }
 
 export interface InviteDetails {
