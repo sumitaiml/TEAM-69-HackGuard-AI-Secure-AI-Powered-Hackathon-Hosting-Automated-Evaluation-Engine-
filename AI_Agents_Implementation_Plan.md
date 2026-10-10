@@ -1,7 +1,7 @@
 # HackEval — Agentic Evaluation Modules: Implementation Plan
 
 **Document Version:** 2.1 — corrected per-agent timeout mechanism and closed the task-status/frontend stage-reporting gap
-**Status:** Design proposal — nothing in this document is implemented yet
+**Status:** Historical design proposal — all 4 agents described below have since been fully implemented and shipped (the "nothing implemented yet" line below is stale). The implementation took a simpler path than this document proposes in places (e.g. no separate `agent_runtime.py` module — the shared retry/fallback scaffold stayed inside the provider client files). It was also since migrated so 3 of these 4 agents plus the main scoring call run on **Groq** rather than Gemini (only the Pitch-Deck agent stays on Gemini, for its multimodal image support) — see `BUILD_DOCUMENTATION.md` §5 for the current, accurate architecture. This document is kept as a historical record of the original design reasoning, not a live reference.
 **Scope:** 4 of the 5 agents discussed are covered here. The **Judge Q&A / Score-Explanation Agent** is explicitly excluded per direction and should be scoped as its own follow-up document.
 **Agents covered:** Repo Verification Agent · Plagiarism Explainer Agent · Pitch-Deck Reasoning Agent · Anti-Cheating / Timeline Agent
 

@@ -25,7 +25,20 @@ class Settings:
     # this) - gemini-3.6-flash is what the API itself now recommends.
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
     GEMINI_MODEL_FALLBACKS: str = os.getenv("GEMINI_MODEL_FALLBACKS", "gemini-3.5-flash,gemini-flash-latest")
-    
+
+    # 3b. AI Services (Groq API) - handles every agent except the pitch-deck
+    # one (still on Gemini above, for its multimodal image support). Moved
+    # here because Gemini's free tier throttles at 5 requests/minute per
+    # model, which the tool-calling repo-verification agent alone can burn
+    # through in one burst; Groq's free tier allows far more requests/minute.
+    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
+    # Confirmed against this project's own live key via client.models.list() -
+    # Groq's catalog has moved on from the Llama 3.1/3.3 line to OpenAI's
+    # open-weight gpt-oss models, which are built for exactly this use case
+    # (strong structured-output and tool-calling support).
+    GROQ_MODEL: str = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+    GROQ_MODEL_FALLBACKS: str = os.getenv("GROQ_MODEL_FALLBACKS", "openai/gpt-oss-20b")
+
     # 4. Whisper STT Model
     WHISPER_MODEL_SIZE: str = os.getenv("WHISPER_MODEL_SIZE", "base")
     

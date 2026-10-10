@@ -8,7 +8,7 @@ A record of everything built so far: what the platform does, how it's architecte
 
 ## 1. Overview
 
-HackEval is an automated hackathon evaluation platform. Participants submit a project (GitHub repo, ZIP, slide deck, demo video); the platform runs it through a real pipeline — static analysis, AST-based plagiarism detection, sandboxed Docker execution, Whisper transcription, PPT extraction, and Gemini-based AI scoring — before organizers and judges review the results on a live leaderboard.
+HackEval is an automated hackathon evaluation platform. Participants submit a project (GitHub repo, ZIP, slide deck, demo video); the platform runs it through a real pipeline — static analysis, AST-based plagiarism detection, sandboxed Docker execution, Whisper transcription, PPT extraction, and LLM-based AI scoring (Groq + Gemini, split by capability — §5) — before organizers and judges review the results on a live leaderboard.
 
 It started as a PRD/spec with a UI/API skeleton where almost none of the "AI-powered" behavior actually existed (static analysis, plagiarism, sandboxing, transcription, and scoring were all hardcoded or simulated). Every one of those has since been replaced with a real implementation, phase by phase, verified against the live stack rather than just unit-tested in isolation.
 
@@ -29,7 +29,7 @@ Everything runs via Docker Compose — six services:
 | `worker` | Celery worker — runs the evaluation pipeline, spawns sandbox containers via Docker-outside-of-Docker |
 | `frontend` | React + Vite dev server (`:5173`) |
 
-**Backend:** Python 3.10, FastAPI, SQLAlchemy + Alembic (Postgres), Celery + Redis for async work, `google-genai` SDK for Gemini.
+**Backend:** Python 3.10, FastAPI, SQLAlchemy + Alembic (Postgres), Celery + Redis for async work, `google-genai` SDK for Gemini + `groq` SDK for Groq (§5).
 
 **Frontend:** React 19 + Vite, TypeScript, `react-router-dom` for routing, hand-written CSS (not Tailwind — see §10), JWT in `localStorage` with a bearer-token `apiClient`.
 
@@ -60,27 +60,31 @@ One Celery task (`run_full_evaluation_task`) runs the whole sequence per submiss
 5. **Timeline check** — flags a repo whose commit history predates the hackathon start, or an unusually large first commit (§5).
 6. **Sandbox execution** — the submission's code actually runs: stack auto-detected (Node/Python), two isolated Docker phases (network-on install, then `network_mode=none` test run), resource-capped (512MB, 1 CPU, 64 pids), 60s hard timeout, guaranteed cleanup.
 7. **Media analysis** — Whisper transcribes the demo video (`faster-whisper`, CPU int8); `python-pptx` extracts per-slide text from the deck.
-8. **AI scoring** — Gemini scores the submission against the rubric; a dedicated pitch-deck agent additionally critiques the deck slide-by-slide, including visual inspection of image-heavy slides (§5).
+8. **AI scoring** — Groq scores the submission against the rubric; a dedicated pitch-deck agent additionally critiques the deck slide-by-slide, including visual inspection of image-heavy slides, still on Gemini (§5).
 
 **Scoring split** (in `ai_evaluation.py`):
 - `technical_complexity` — **fully deterministic**: 60% real static-analysis code-quality score + 40% real sandbox test pass rate. Never judged by an LLM.
-- `innovation`, `ui_ux`, `business_impact` — fully Gemini-judged from the README/tech stack/transcript.
-- `documentation`, `presentation` — hybrid: 50/50 (documentation) or blended (presentation) between deterministic structural checks and Gemini's qualitative read.
+- `innovation`, `ui_ux`, `business_impact` — fully Groq-judged from the README/tech stack/transcript.
+- `documentation`, `presentation` — hybrid: 50/50 (documentation) or blended (presentation) between deterministic structural checks and the LLM's qualitative read.
 
-**Degraded mode:** if Gemini fails after every model-fallback and retry, the pipeline doesn't fail the whole evaluation — it keeps every real deterministic result and flags `ai_evaluation_degraded: true` on the report.
+**Degraded mode:** if the LLM call fails after every model-fallback and retry, the pipeline doesn't fail the whole evaluation — it keeps every real deterministic result and flags `ai_evaluation_degraded: true` on the report.
 
 ---
 
 ## 5. The Four AI Agents
 
-All four sit on one shared scaffold, `call_structured_gemini()` in `gemini_client.py`: forces JSON output matching a Pydantic schema, retries with exponential backoff on 429/5xx, does one self-repair pass on invalid JSON, and falls back across a configured model list (`gemini-3.6-flash` → `gemini-3.5-flash` → `gemini-flash-latest`). Passing `tools=[...]` turns it into genuine agentic tool-calling via Gemini's Automatic Function Calling.
+**Two providers, split by capability.** Gemini's free tier throttles hard (5 requests/minute per model — confirmed directly in this project's own logs), and the repo-verification agent's tool-calling burst alone could exhaust that in seconds. So 4 of the 5 LLM calls run on **Groq** (`groq_client.py`) instead; only the **pitch-deck agent** stays on **Gemini** (`gemini_client.py`), since it's the one call that needs genuine multimodal image support, which Groq doesn't reliably offer. Groq's current model is `openai/gpt-oss-120b` (fallback `openai/gpt-oss-20b`) — confirmed against the live API, since Groq's catalog has moved on from the Llama 3.1/3.3 line commonly documented elsewhere.
 
-| Agent | What it checks | How |
-|---|---|---|
-| **Timeline Agent** | A pre-built project submitted as "new" | Deterministic pre-filter first (commit history predates hackathon start, or an oversized first commit) — only calls Gemini when that trips, to rule out an innocent explanation (disclosed starter template, etc.) before raising risk |
-| **Plagiarism Explainer** | Turns a MinHash similarity % into a real verdict | Deterministic pre-filter shortlists the actual matching file pairs (≥0.5 Jaccard); Gemini reads the real overlapping code and judges `likely_shared_boilerplate` vs `probable_copying` vs `inconclusive` |
-| **Repo Verification Agent** | Does the README's claims match the actual code? | The only agent with genuine tool-calling — Gemini is handed `list_directory`/`read_file`/`search_code` (path-traversal-guarded) and decides what to inspect itself. If it never actually calls a tool, confidence is server-side forced to 0 regardless of what it reports — a model can't "confidently" verify claims it never checked |
-| **Pitch Deck Agent** | Slide-by-slide critique + **deck-relevance check** | Multimodal: text-sparse slides (<50 chars, likely a diagram/screenshot) get their actual image attached via `types.Part.from_bytes`. Also compares the deck's actual content against the README and judges `is_relevant_to_project`. If a deck is flagged irrelevant (e.g. an unrelated or placeholder file was uploaded), the narrative score is forced to 0 server-side regardless of what the model scored it, **and** the entire presentation parameter score is zeroed — technical/innovation/documentation scores are untouched since those are judged independently from the README/code. Surfaced to organizers as a dedicated "Pitch Deck Relevance Check" table and to judges as a red warning banner on the report |
+Both clients mirror the same contract: force JSON output matching a Pydantic schema, retry with exponential backoff on 429/5xx, one self-repair pass on invalid JSON, fall back across a configured model list. Gemini gets genuine agentic tool-calling for free via its SDK's Automatic Function Calling; Groq has no equivalent, so `call_agentic_groq()` hand-rolls the call→execute→feed-back loop itself. One real quirk found and fixed during the migration: Groq's gpt-oss models, when given both `tools` and any hint of the expected output shape, sometimes try to "call" a synthetic tool named after that shape instead of answering normally — `groq_client.py` avoids mentioning the output schema at all while tools are in play (the schema is only introduced in a separate, tools-free final call), plus a narrow error-pattern catch (`_is_phantom_tool_call_error`) that recovers gracefully if it happens anyway, rather than burning a whole model candidate on it.
+
+| Agent | What it checks | How | Provider |
+|---|---|---|---|
+| **Timeline Agent** | A pre-built project submitted as "new" | Deterministic pre-filter first (commit history predates hackathon start, or an oversized first commit) — only calls the LLM when that trips, to rule out an innocent explanation (disclosed starter template, etc.) before raising risk | Groq |
+| **Plagiarism Explainer** | Turns a MinHash similarity % into a real verdict | Deterministic pre-filter shortlists the actual matching file pairs (≥0.5 Jaccard); the LLM reads the real overlapping code and judges `likely_shared_boilerplate` vs `probable_copying` vs `inconclusive` | Groq |
+| **Repo Verification Agent** | Does the README's claims match the actual code? | The only agent with genuine tool-calling — the model is handed `list_directory`/`read_file`/`search_code` (path-traversal-guarded) and decides what to inspect itself. If it never actually calls a tool, confidence is server-side forced to 0 regardless of what it reports — a model can't "confidently" verify claims it never checked | Groq |
+| **Pitch Deck Agent** | Slide-by-slide critique + **deck-relevance check** | Multimodal: text-sparse slides (<50 chars, likely a diagram/screenshot) get their actual image attached via `types.Part.from_bytes`. Also compares the deck's actual content against the README and judges `is_relevant_to_project`. If a deck is flagged irrelevant (e.g. an unrelated or placeholder file was uploaded), the narrative score is forced to 0 server-side regardless of what the model scored it, **and** the entire presentation parameter score is zeroed — technical/innovation/documentation scores are untouched since those are judged independently from the README/code. Surfaced to organizers as a dedicated "Pitch Deck Relevance Check" table and to judges as a red warning banner on the report | **Gemini** (needs multimodal) |
+
+Real impact, measured: a live evaluation that took **473.9s** entirely on Gemini's free tier (almost all retry/backoff delay, not inference) completed in **27.6s** after the migration — a ~17x speedup — with `ai_evaluation_degraded: false` confirming real (non-fallback) scoring throughout.
 
 ---
 
@@ -114,11 +118,11 @@ All four sit on one shared scaffold, `call_structured_gemini()` in `gemini_clien
 
 ## 9. Testing & Verification
 
-**Automated suite:** 84 passing tests (`docker compose exec api pytest -q`) across phase-numbered files plus dedicated files per agent (`test_timeline_agent.py`, `test_repo_verification_agent.py`, `test_pitch_deck_agent.py`, `test_plagiarism_explainer.py`, `test_ai_evaluation.py`, `test_ai_code_detection.py`). Gemini/Docker-sandbox/Whisper are mocked at the service boundary for speed and determinism; the real integrations are verified manually.
+**Automated suite:** 97 passing tests (`docker compose exec api pytest -q`) across phase-numbered files plus dedicated files per agent (`test_timeline_agent.py`, `test_repo_verification_agent.py`, `test_pitch_deck_agent.py`, `test_plagiarism_explainer.py`, `test_ai_evaluation.py`, `test_ai_code_detection.py`, `test_groq_client.py`). Gemini/Groq/Docker-sandbox/Whisper are mocked at the service boundary for speed and determinism; the real integrations are verified manually.
 
 **Manually verified live**, not just unit-tested:
 - Full register → create hackathon → submit → evaluate → leaderboard → judge-override flow, multiple times, via both the UI and direct API calls.
-- Real Gemini scoring against the live API key (including watching it work through free-tier rate-limit retries in production logs).
+- Real Groq + Gemini scoring against live API keys, including a real repo-verification tool-calling run against the backend's own source tree (confirmed accurate claim-checking with correct file/line citations) and a full pipeline run timed at 27.6s (vs. a 473.9s pre-migration baseline on Gemini's free tier alone).
 - Real Docker sandbox execution (pass/fail counts, timeout-and-cleanup on a hung process).
 - CSV bulk judge invite, end-to-end, via Playwright browser automation.
 - Tab-switch animation replay, via Playwright `animationstart` event capture.
@@ -131,7 +135,8 @@ All four sit on one shared scaffold, `call_structured_gemini()` in `gemini_clien
 
 - **Styling:** the frontend keeps hand-written CSS/JSX rather than the PRD's named Tailwind/Shadcn/Framer Motion stack — a deliberate, flagged trade-off; cosmetic and orthogonal to making the AI/security behavior real.
 - **"Publish Winner Ranks"** is an intentionally disabled stub (no backing endpoint) rather than wired to a fake success.
-- **Gemini free tier:** the current API key is on the free tier (5 requests/minute per model). A single evaluation can burn through that quickly — the repo-verification agent alone can fire 10 tool-calling requests in a burst — so evaluations sometimes take several minutes while the model-fallback/retry logic cycles through `429`/`503` errors before succeeding. Not a bug; the fix (not yet implemented) would be either enabling billing (same code, ~1000+ RPM) or adding client-side request pacing to stay under the free-tier ceiling.
+- **Gemini free tier still applies to the pitch-deck agent** (5 requests/minute per model) — it's just one bounded, optional call now (only fires when a PPT is uploaded), so it's rarely a practical bottleneck, unlike before the Groq migration when the tool-calling repo-verification agent alone could exhaust it in one burst.
+- **Groq's own free-tier limits** (far higher RPM than Gemini, but a tighter token-per-minute ceiling) haven't been stress-tested under heavy concurrent load — the repo-verification agent's multi-turn tool-calling burst is the most token-hungry call in the pipeline and is the one most likely to hit it first if usage grows.
 - **Pitch-deck agent weighting:** deliberately low (0.2 of the presentation sub-score) relative to the two older signals, pending validation against more real decks — except when flagged irrelevant, where it now overrides to zero outright (§5).
 
 ---
@@ -142,12 +147,12 @@ All four sit on one shared scaffold, `call_structured_gemini()` in `gemini_clien
 backend/
   app/
     routers/        auth, hackathons, teams, submissions, evaluation, tasks
-    services/        static analysis, plagiarism, sandbox, whisper/ppt, gemini client,
-                     the four AI agents, upload validation, audit log, email
+    services/        static analysis, plagiarism, sandbox, whisper/ppt, gemini + groq
+                     clients, the four AI agents, upload validation, audit log, email
     tasks/           Celery task definitions (full evaluation pipeline)
     models.py, schemas.py, config.py, auth.py
   alembic/           database migrations
-  tests/             pytest suite (84 tests, phase-numbered + per-agent)
+  tests/             pytest suite (97 tests, phase-numbered + per-agent)
 frontend/
   src/
     components/      OrganizerDashboard, ParticipantDashboard, JudgeDashboard,

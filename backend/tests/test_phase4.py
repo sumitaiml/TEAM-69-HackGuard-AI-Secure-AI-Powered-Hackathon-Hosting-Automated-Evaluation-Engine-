@@ -26,7 +26,7 @@ def test_phase4_evaluation_override_and_leaderboard(client, monkeypatch):
         improvement_suggestions=["Add more automated test coverage."],
     )
     monkeypatch.setattr(
-        ai_evaluation_module.gemini_client, "score_submission",
+        ai_evaluation_module.groq_client, "score_submission",
         lambda **kwargs: fake_gemini_result
     )
 
@@ -162,8 +162,8 @@ def test_evaluation_degrades_gracefully_when_gemini_fails(client, monkeypatch):
     # still get saved, with a documented degraded flag for judges to see.
     import app.services.ai_evaluation as ai_evaluation_module
     monkeypatch.setattr(
-        ai_evaluation_module.gemini_client, "score_submission",
-        lambda **kwargs: (_ for _ in ()).throw(RuntimeError("all Gemini model candidates failed"))
+        ai_evaluation_module.groq_client, "score_submission",
+        lambda **kwargs: (_ for _ in ()).throw(RuntimeError("all Groq model candidates failed"))
     )
 
     part_res = client.post("/api/auth/register", json={

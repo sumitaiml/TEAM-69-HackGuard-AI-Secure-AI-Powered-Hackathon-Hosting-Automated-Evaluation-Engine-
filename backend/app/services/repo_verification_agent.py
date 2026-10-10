@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
 from app.config import settings
-from app.services.gemini_client import call_structured_gemini
+from app.services.groq_client import call_agentic_groq
 
 _MAX_READ_BYTES = 8000
 _MAX_SEARCH_MATCHES = 30
@@ -133,7 +133,11 @@ def run_repo_verification_agent(source_dir: Optional[str], readme_text: str) -> 
 
     try:
         prompt = _build_prompt(readme_text)
-        result = call_structured_gemini(prompt, RepoVerificationResult, tools=[list_directory, read_file, search_code])
+        result = call_agentic_groq(
+            prompt, RepoVerificationResult,
+            tools=[list_directory, read_file, search_code],
+            max_tool_calls=settings.AGENT_MAX_TOOL_CALLS,
+        )
         data = result.model_dump()
         data["status"] = "completed"
         # Server-side override, not trusted from the model: if no tool was

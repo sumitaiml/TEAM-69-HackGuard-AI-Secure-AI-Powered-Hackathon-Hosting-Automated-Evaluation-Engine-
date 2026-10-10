@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from app import models
 from app.config import settings
-from app.services.gemini_client import call_structured_gemini
+from app.services.groq_client import call_structured_groq
 from app.services.source_fetch import SourceFetchError, clone_repo_with_history
 
 logger = logging.getLogger(__name__)
@@ -156,7 +156,7 @@ def run_timeline_risk_check(submission: "models.Submission", hackathon_start_dat
 
     try:
         prompt = _build_prompt(commits, submission.readme_text or "", hackathon_start_date or earliest_dt)
-        result = call_structured_gemini(prompt, TimelineRiskAssessment)
+        result = call_structured_groq(prompt, TimelineRiskAssessment)
         return result.model_dump()
     except Exception as e:
         logger.warning("Timeline agent LLM call failed, falling back to the deterministic flag alone: %s", e)

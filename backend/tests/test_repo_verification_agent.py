@@ -33,7 +33,7 @@ def test_tools_can_actually_read_the_fixture_tree(tmp_path, monkeypatch):
 
     captured_tools = {}
 
-    def fake_call_structured_gemini(prompt, schema, tools=None):
+    def fake_call_agentic_groq(prompt, schema, tools, max_tool_calls):
         captured_tools["tools"] = tools
         # Exercise the tools exactly like the real model would, to prove
         # they work end-to-end against the real fixture directory.
@@ -49,7 +49,7 @@ def test_tools_can_actually_read_the_fixture_tree(tmp_path, monkeypatch):
             confidence=1.0,
         )
 
-    monkeypatch.setattr(repo_verification_agent_module, "call_structured_gemini", fake_call_structured_gemini)
+    monkeypatch.setattr(repo_verification_agent_module, "call_agentic_groq", fake_call_agentic_groq)
 
     result = run_repo_verification_agent(str(tmp_path), "# My Project\nBuilt with FastAPI.")
 
@@ -66,7 +66,7 @@ def test_confidence_forced_to_zero_when_model_never_calls_a_tool(tmp_path, monke
     the model itself reports."""
     (tmp_path / "main.py").write_text("print('hi')")
 
-    def fake_call_structured_gemini(prompt, schema, tools=None):
+    def fake_call_agentic_groq(prompt, schema, tools, max_tool_calls):
         # Deliberately never calls any of the tools.
         return RepoVerificationResult(
             claims_checked=[ClaimCheck(claim="Uses FastAPI", verdict="confirmed", evidence="made up")],
@@ -75,7 +75,7 @@ def test_confidence_forced_to_zero_when_model_never_calls_a_tool(tmp_path, monke
             confidence=0.95,  # the model claims high confidence despite never checking anything
         )
 
-    monkeypatch.setattr(repo_verification_agent_module, "call_structured_gemini", fake_call_structured_gemini)
+    monkeypatch.setattr(repo_verification_agent_module, "call_agentic_groq", fake_call_agentic_groq)
 
     result = run_repo_verification_agent(str(tmp_path), "# My Project\nBuilt with FastAPI.")
 
@@ -86,13 +86,13 @@ def test_path_traversal_blocked_in_tools(tmp_path, monkeypatch):
     (tmp_path / "main.py").write_text("print('hi')")
     captured = {}
 
-    def fake_call_structured_gemini(prompt, schema, tools=None):
+    def fake_call_agentic_groq(prompt, schema, tools, max_tool_calls):
         list_directory, read_file, search_code = tools
         captured["escape_attempt"] = read_file("../../../etc/passwd")
         captured["escape_listing"] = list_directory("../../")
         return RepoVerificationResult(claims_checked=[], architecture_summary="", red_flags=[], confidence=0.5)
 
-    monkeypatch.setattr(repo_verification_agent_module, "call_structured_gemini", fake_call_structured_gemini)
+    monkeypatch.setattr(repo_verification_agent_module, "call_agentic_groq", fake_call_agentic_groq)
     run_repo_verification_agent(str(tmp_path), "# README")
 
     assert captured["escape_attempt"] == "(file not found)"
@@ -103,9 +103,9 @@ def test_degrades_gracefully_on_llm_failure(tmp_path, monkeypatch):
     (tmp_path / "main.py").write_text("print('hi')")
 
     def _raise(*a, **k):
-        raise RuntimeError("All Gemini model candidates failed")
+        raise RuntimeError("All Groq model candidates failed")
 
-    monkeypatch.setattr(repo_verification_agent_module, "call_structured_gemini", _raise)
+    monkeypatch.setattr(repo_verification_agent_module, "call_agentic_groq", _raise)
 
     result = run_repo_verification_agent(str(tmp_path), "# README")
 

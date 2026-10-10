@@ -78,17 +78,17 @@ def test_clean_when_commits_are_within_hackathon_window(monkeypatch, git_repo):
     _commit(git_repo, "a.txt", "hello", hackathon_start + timedelta(hours=2), lines_of_padding=5)
 
     monkeypatch.setattr(timeline_agent, "clone_repo_with_history", lambda url, dest, timeout=60: _copy_repo(git_repo, dest))
-    called = {"gemini": False}
+    called = {"groq": False}
     def _fail_if_called(*a, **k):
-        called["gemini"] = True
-        raise AssertionError("Gemini should not be called for a clean timeline")
-    monkeypatch.setattr(timeline_agent, "call_structured_gemini", _fail_if_called)
+        called["groq"] = True
+        raise AssertionError("Groq should not be called for a clean timeline")
+    monkeypatch.setattr(timeline_agent, "call_structured_groq", _fail_if_called)
 
     result = run_timeline_risk_check(FakeSubmission(github_url="https://example.com/repo.git"), hackathon_start)
 
     assert result["status"] == "clean"
     assert result["risk_level"] == "LOW"
-    assert called["gemini"] is False
+    assert called["groq"] is False
 
 
 def test_flagged_when_commits_predate_hackathon_start(monkeypatch, git_repo):
@@ -101,7 +101,7 @@ def test_flagged_when_commits_predate_hackathon_start(monkeypatch, git_repo):
         reasoning="Commit history predates the hackathon with no disclosed starter template.",
         suspicious_commits=["abc1234"],
     )
-    monkeypatch.setattr(timeline_agent, "call_structured_gemini", lambda prompt, schema: fake_assessment)
+    monkeypatch.setattr(timeline_agent, "call_structured_groq", lambda prompt, schema: fake_assessment)
 
     result = run_timeline_risk_check(FakeSubmission(github_url="https://example.com/repo.git"), hackathon_start)
 
@@ -118,7 +118,7 @@ def test_flagged_by_large_initial_commit_even_within_window(monkeypatch, git_rep
     fake_assessment = TimelineRiskAssessment(
         status="flagged", risk_level="MEDIUM", reasoning="Unusually large initial commit.", suspicious_commits=[],
     )
-    monkeypatch.setattr(timeline_agent, "call_structured_gemini", lambda prompt, schema: fake_assessment)
+    monkeypatch.setattr(timeline_agent, "call_structured_groq", lambda prompt, schema: fake_assessment)
 
     result = run_timeline_risk_check(FakeSubmission(github_url="https://example.com/repo.git"), hackathon_start)
 
@@ -131,8 +131,8 @@ def test_degrades_to_deterministic_flag_when_llm_fails(monkeypatch, git_repo):
 
     monkeypatch.setattr(timeline_agent, "clone_repo_with_history", lambda url, dest, timeout=60: _copy_repo(git_repo, dest))
     def _raise(*a, **k):
-        raise RuntimeError("All Gemini model candidates failed")
-    monkeypatch.setattr(timeline_agent, "call_structured_gemini", _raise)
+        raise RuntimeError("All Groq model candidates failed")
+    monkeypatch.setattr(timeline_agent, "call_structured_groq", _raise)
 
     result = run_timeline_risk_check(FakeSubmission(github_url="https://example.com/repo.git"), hackathon_start)
 

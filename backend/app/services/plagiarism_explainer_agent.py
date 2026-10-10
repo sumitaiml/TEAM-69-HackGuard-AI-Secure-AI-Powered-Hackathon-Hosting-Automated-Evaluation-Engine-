@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app import models
-from app.services.gemini_client import call_structured_gemini
+from app.services.groq_client import call_structured_groq
 from app.services.plagiarism_engine import _jaccard_from_signatures
 
 logger = logging.getLogger(__name__)
@@ -128,7 +128,7 @@ def run_plagiarism_explainer_agent(db: Session, submission_id: str, matched_subm
 
     try:
         prompt = _build_prompt(top_pairs, contents)
-        result = call_structured_gemini(prompt, PlagiarismExplanation)
+        result = call_structured_groq(prompt, PlagiarismExplanation)
         return result.model_dump()
     except Exception as e:
         logger.warning("Plagiarism explainer LLM call failed: %s", e)

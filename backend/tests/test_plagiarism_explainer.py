@@ -186,14 +186,14 @@ def test_full_pipeline_triggers_explainer_only_for_flagged_submission(client, mo
         documentation_quality_score=70.0, presentation_quality_score=70.0,
         feedback=["ok"], improvement_suggestions=["ok"],
     )
-    monkeypatch.setattr(ai_evaluation_module.gemini_client, "score_submission", lambda **kwargs: fake_gemini_result)
+    monkeypatch.setattr(ai_evaluation_module.groq_client, "score_submission", lambda **kwargs: fake_gemini_result)
 
     fake_explanation = PlagiarismExplanation(
         verdict="probable_copying",
         explanation="Both files implement near-identical request handling logic with only cosmetic renames.",
         cited_file_pairs=["main.py <-> main.py"],
     )
-    monkeypatch.setattr(plagiarism_explainer_agent_module, "call_structured_gemini", lambda prompt, schema: fake_explanation)
+    monkeypatch.setattr(plagiarism_explainer_agent_module, "call_structured_groq", lambda prompt, schema: fake_explanation)
 
     hack_id = _create_hackathon(client, "org_explainer@hackeval.ai")
 

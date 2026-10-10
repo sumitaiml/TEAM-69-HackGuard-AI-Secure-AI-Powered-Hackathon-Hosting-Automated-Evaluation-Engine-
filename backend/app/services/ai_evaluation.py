@@ -2,7 +2,7 @@ import logging
 import re
 from typing import Any, Dict, Optional
 
-from app.services import gemini_client
+from app.services import groq_client
 from app.services.pitch_deck_agent import run_pitch_deck_agent
 
 logger = logging.getLogger(__name__)
@@ -112,7 +112,7 @@ def evaluate_project_with_ai(
     degraded = False
     degraded_reason = None
     try:
-        gemini_result = gemini_client.score_submission(
+        gemini_result = groq_client.score_submission(
             readme_text=readme_text,
             ppt_slides_text=ppt_slides_text,
             transcript=transcript,

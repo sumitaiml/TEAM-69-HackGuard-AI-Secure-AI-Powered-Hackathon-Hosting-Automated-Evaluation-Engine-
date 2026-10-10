@@ -14,7 +14,7 @@ _FAKE_GEMINI_RESULT = GeminiScoreResponse(
 
 
 def _run(monkeypatch, pitch_deck_result):
-    monkeypatch.setattr(ai_evaluation_module.gemini_client, "score_submission", lambda **kwargs: _FAKE_GEMINI_RESULT)
+    monkeypatch.setattr(ai_evaluation_module.groq_client, "score_submission", lambda **kwargs: _FAKE_GEMINI_RESULT)
     monkeypatch.setattr(ai_evaluation_module, "run_pitch_deck_agent", lambda ppt_report, readme_text: pitch_deck_result)
     return evaluate_project_with_ai(
         readme_text="# AutoJudge\nAutomates hackathon judging.",
