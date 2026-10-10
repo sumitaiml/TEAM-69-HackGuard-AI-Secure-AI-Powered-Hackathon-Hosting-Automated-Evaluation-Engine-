@@ -101,9 +101,15 @@ def test_is_retryable_on_429_and_5xx_not_on_other_codes():
     assert _is_retryable(ValueError("no status_code at all")) is False
 
 
-def test_is_phantom_tool_call_error_matches_only_the_known_pattern():
-    phantom = _FakeAPIError(400, "Tool call validation failed: tool call validation failed: attempted to call tool 'json' which was not in request.tools")
-    assert _is_phantom_tool_call_error(phantom) is True
+def test_is_phantom_tool_call_error_matches_both_known_patterns():
+    # Shape 1: a synthetic tool named after the schema/response format, seen
+    # during the investigation phase (tools offered).
+    phantom_during_investigation = _FakeAPIError(400, "Tool call validation failed: tool call validation failed: attempted to call tool 'json' which was not in request.tools")
+    assert _is_phantom_tool_call_error(phantom_during_investigation) is True
+    # Shape 2: a REAL tool name, called on the separate final call where no
+    # tools were offered at all - a different error string entirely.
+    phantom_on_final_call = _FakeAPIError(400, "Tool choice is none, but model called a tool")
+    assert _is_phantom_tool_call_error(phantom_on_final_call) is True
     # A different 400 (genuinely malformed request) must NOT be swallowed by this check.
     assert _is_phantom_tool_call_error(_FakeAPIError(400, "invalid_request_error: messages must not be empty")) is False
     assert _is_phantom_tool_call_error(_FakeAPIError(429, "rate limited")) is False
@@ -236,6 +242,36 @@ def test_call_agentic_groq_recovers_from_phantom_tool_call_error(monkeypatch):
     result = call_agentic_groq("investigate", _DummySchema, tools=[list_directory], max_tool_calls=10)
 
     assert result == _DummySchema(value="recovered")
+
+
+def test_call_agentic_groq_recovers_from_phantom_tool_call_on_final_answer(monkeypatch):
+    """A third live-found instance: on the SEPARATE final call, where
+    `tools` isn't offered at all, the model still tried to call a REAL
+    tool name left over from the investigation phase ("search_code") -
+    rejected by the API as "Tool choice is none, but model called a tool".
+    This must retry once with an explicit no-tools instruction rather than
+    burning the whole model candidate, since by this point real
+    investigation work (via real tool calls) may already have happened."""
+    def search_code(pattern: str):
+        """Searches code."""
+        return []
+
+    tool_call_message = _FakeMessage(content="", tool_calls=[_FakeToolCall("call_1", "search_code", '{"pattern": "x"}')])
+    stop_message = _FakeMessage(content="done", tool_calls=None)
+    phantom_on_final = _FakeAPIError(400, "Tool choice is none, but model called a tool")
+    recovered_message = _FakeMessage(content='{"value": "recovered after retry"}', tool_calls=None)
+    fake_client = _patch_client(monkeypatch, [
+        _FakeResponse(tool_call_message),  # investigation: a real tool call
+        _FakeResponse(stop_message),       # investigation: stops
+        phantom_on_final,                  # final call: phantom tool call - triggers the retry
+        _FakeResponse(recovered_message),  # retry with explicit no-tools instruction: succeeds
+    ])
+
+    result = call_agentic_groq("investigate", _DummySchema, tools=[search_code], max_tool_calls=10)
+
+    assert result == _DummySchema(value="recovered after retry")
+    # The retry call must still be tools-free.
+    assert not fake_client.chat.completions.calls[-1].get("tools")
 
 
 def test_call_agentic_groq_never_mentions_schema_while_tools_are_in_play(monkeypatch):

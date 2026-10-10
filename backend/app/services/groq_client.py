@@ -49,19 +49,30 @@ def _is_retryable(exc: BaseException) -> bool:
 
 
 def _is_phantom_tool_call_error(exc: BaseException) -> bool:
-    """Detects the specific Groq gpt-oss quirk seen live: given `tools` plus
-    any hint of what the final answer should contain, the model sometimes
-    tries to "call" a synthetic tool (named e.g. "json", "JSON", or after
-    the response schema's class name) instead of using a real tool or
-    replying in plain text - which the API rejects with a 400 naming a tool
-    that "was not in request.tools". Narrowly matched on that exact error
-    shape so an unrelated 400 (a genuinely malformed request) still
-    surfaces as a real failure instead of being silently swallowed."""
+    """Detects Groq gpt-oss's tendency to keep trying to call a tool once a
+    conversation has included tool use, even on a request where it
+    shouldn't - seen live in two distinct shapes, both 400s:
+    1. Given `tools` plus any hint of the eventual answer's shape, it tries
+       to "call" a synthetic tool named after that shape (e.g. "json" or
+       the response schema's class name) instead of using a real tool or
+       replying in plain text - rejected with a tool "was not in
+       request.tools".
+    2. On the separate final call where `tools` is withheld entirely, it
+       still tries to call a REAL tool from earlier in the conversation
+       (e.g. "search_code") - rejected with "Tool choice is none, but
+       model called a tool".
+    Narrowly matched on these specific error shapes so an unrelated 400 (a
+    genuinely malformed request) still surfaces as a real failure instead
+    of being silently swallowed."""
     status_code = getattr(exc, "status_code", None)
     if status_code != 400:
         return False
     message = str(exc).lower()
-    return "tool call validation failed" in message and "not in request.tools" in message
+    if "tool call validation failed" in message and "not in request.tools" in message:
+        return True
+    if "tool choice is none" in message and "called a tool" in message:
+        return True
+    return False
 
 
 def _function_to_tool_schema(func: Callable) -> Dict[str, Any]:
@@ -254,8 +265,25 @@ def call_agentic_groq(prompt: str, response_schema: Type[T], tools: List[Callabl
                     f"this schema (no markdown fences, no commentary): {schema_json}"
                 ),
             })
-            response = _chat(client, model_name, messages, force_json=True)
-            final_text = response.choices[0].message.content
+            try:
+                response = _chat(client, model_name, messages, force_json=True)
+                final_text = response.choices[0].message.content
+            except Exception as e:
+                if not _is_phantom_tool_call_error(e):
+                    raise
+                # Seen live: even with no `tools` offered on this call, the
+                # model sometimes still tries to call a real tool from
+                # earlier in the conversation (e.g. "search_code"). One
+                # retry with an explicit "you have no tools right now"
+                # instruction, rather than burning the whole model
+                # candidate over it.
+                logger.warning("Groq model %s attempted a phantom tool call on the final answer, retrying with an explicit no-tools instruction: %s", model_name, e)
+                messages.append({
+                    "role": "user",
+                    "content": "You have no tools available in this message - do not attempt to call any tool. Just write the JSON answer directly.",
+                })
+                response = _chat(client, model_name, messages, force_json=True)
+                final_text = response.choices[0].message.content
         except Exception as e:
             logger.warning("Groq model %s failed: %s", model_name, e)
             last_error = e
