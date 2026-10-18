@@ -1,107 +1,197 @@
 # HackEval
 
-An automated hackathon evaluation platform: participants submit a project (GitHub repo, ZIP, slide deck, demo video), and the platform runs it through a real pipeline — static analysis (Semgrep/Pylint/ESLint), AST-based plagiarism detection, sandboxed Docker execution, Whisper transcription of the demo video, PPT slide extraction, and Gemini-based AI scoring — before organizers and judges review the results on a live leaderboard.
+> **Secure, AI-Powered Hackathon Hosting & Automated Evaluation Engine**
 
-See [`HackEval_PRD_Updated.md`](HackEval_PRD_Updated.md) for the full product spec.
+HackEval is an automated hackathon evaluation platform. Participants submit projects (GitHub repository, source ZIP, pitch deck, and demo video), and the platform runs them through a rigorous, multi-stage evaluation pipeline:
+- **Deterministic Static Analysis**: Real `semgrep`, `pylint`, and `eslint` scans with heuristic AI-generated code detection.
+- **AST-Based Plagiarism Detection**: MinHash tree-sitter fingerprinting against existing submissions.
+- **Isolated Docker Sandboxing**: Secure execution and dependency testing inside resource-capped, network-isolated containers.
+- **Media Processing**: Local Whisper transcription (`faster-whisper`, int8) and slide deck extraction (`python-pptx`).
+- **Four Specialized AI Agents**: Dual-provider LLM pipeline (Groq for high-throughput reasoning + Gemini for multimodal vision).
+- **Live Leaderboard & Judge Review**: Role-based portals for Organizers, Participants, and Judges with live fraud signals and score override workflows.
+
+---
 
 ## Architecture
 
-| Service | What it does |
-|---|---|
-| `postgres` | Primary datastore |
-| `redis` | Celery broker + result backend |
-| `migrate` | One-shot Alembic migration runner (runs once on `up`, then exits) |
-| `api` | FastAPI backend (`:8000`) |
-| `worker` | Celery worker — runs the evaluation pipeline, including spawning sandbox containers via Docker-outside-of-Docker |
-| `frontend` | React + Vite dev server (`:5173`) |
+HackEval runs as a multi-container stack orchestrated via Docker Compose:
 
-The worker mounts the host's `/var/run/docker.sock` to launch sandbox containers as siblings (not nested/privileged) — untrusted submission code only ever runs inside a hardened, network-isolated sandbox container, never near the socket itself.
+```
+                          ┌───────────────────────┐
+                          │   Frontend (React 19) │  :5173
+                          └───────────┬───────────┘
+                                      │ HTTP / REST
+                                      ▼
+┌──────────────────┐      ┌───────────────────────┐      ┌───────────────────────┐
+│ Postgres 16 DB   │◄────►│  FastAPI Backend API  │◄────►│ Redis 7 Broker/Cache  │
+│ (Port 5432)      │      │  (Port 8090 -> 8000)  │      │ (Port 6379)           │
+└──────────────────┘      └───────────────────────┘      └───────────┬───────────┘
+                                                                     │ Celery Tasks
+                                                                     ▼
+                                                         ┌───────────────────────┐
+                                                         │ Celery Worker Engine  │
+                                                         └───────────┬───────────┘
+                                                                     │ Docker-out-of-Docker
+                                                                     ▼
+                                                         ┌───────────────────────┐
+                                                         │ Isolated Sandboxes    │
+                                                         └───────────────────────┘
+```
+
+| Service | Container / Port | Description |
+|---|---|---|
+| **`postgres`** | `postgres:16-alpine` (`:5432`) | Primary datastore for users, submissions, reports, and fingerprints. |
+| **`redis`** | `redis:7-alpine` (`:6379`) | Celery message broker and task result cache. |
+| **`migrate`** | `hackeval-backend:local` | One-shot Alembic migration runner; executes on startup and exits cleanly. |
+| **`api`** | `hackeval-backend:local` (`:8090` -> `:8000`) | FastAPI application serving REST endpoints and OpenAPI documentation. |
+| **`worker`** | `hackeval-backend:local` | Celery worker executing the evaluation pipeline and managing sibling Docker sandboxes. |
+| **`frontend`** | Node 20 / Vite (`:5173`) | React 19 single-page application with role-based dashboards. |
+
+---
+
+## The AI Pipeline & Agent Architecture
+
+The evaluation engine uses a hybrid deterministic/AI split to guarantee fair, reproducible scoring:
+
+| Agent / Stage | Provider | Responsibility |
+|---|---|---|
+| **Repo Verification Agent** | **Groq** (`gpt-oss-120b`) | Autonomous tool-calling agent with `list_directory`, `read_file`, and `search_code` capabilities. Verifies README claims directly against the source code. |
+| **Timeline Agent** | **Groq** (`gpt-oss-120b`) | Analyzes Git commit history and first-commit size to detect pre-built projects submitted as new work. |
+| **Plagiarism Explainer** | **Groq** (`gpt-oss-120b`) | Receives AST MinHash overlapping code segments (Jaccard similarity ≥ 0.5) and classifies code as boilerplate vs. direct plagiarism. |
+| **Pitch Deck Agent** | **Gemini** (`gemini-3.6-flash`) | Multimodal slide-by-slide narrative evaluation with visual screenshot inspection. Enforces automatic zero-override if deck is irrelevant to the submitted project. |
+| **Technical Complexity** | **Deterministic** | 60% static analysis code quality + 40% sandbox test pass rate. Never delegated to an LLM. |
+
+---
 
 ## Prerequisites
 
-- Docker and Docker Compose
-- A [Gemini API key](https://aistudio.google.com/apikey) (required for AI scoring — everything else in the pipeline runs without it, but evaluations will fall back to a degraded/deterministic-only score if it's missing)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (v24+ with Compose v2+)
+- [Node.js](https://nodejs.org/) (v20+ recommended for host frontend development)
+- [Groq API Key](https://console.groq.com/keys) (Free tier supported)
+- [Google AI Studio Gemini API Key](https://aistudio.google.com/apikey) (Free tier supported)
+
+---
 
 ## Quickstart
 
+### 1. Configure Environment Variables
+
+Create your `.env` files from the provided templates:
+
 ```bash
+# Backend configuration
 cp backend/.env.example backend/.env
-# edit backend/.env and set GEMINI_API_KEY at minimum
 
-docker compose up --build
+# Frontend configuration
+cp frontend/.env.example frontend/.env
 ```
 
-Then open:
-- Frontend: http://localhost:5173
-- API docs (Swagger UI): http://localhost:8000/docs
+Edit `backend/.env` and insert your API keys:
+```env
+GEMINI_API_KEY=your_gemini_api_key_here
+GROQ_API_KEY=your_groq_api_key_here
+```
 
-Register an **organizer** account, create a hackathon, and register a **participant** account (in a separate browser/incognito session) to submit a project. Judges aren't self-registered — an organizer invites them by email from the dashboard; if no SMTP server is configured (see below), the invite link is returned directly in the UI (`dev_invite_link`) so the flow works end-to-end without a real mail provider.
-
-To reset to a completely clean state (wipes the database and all volumes):
+### 2. Install Local Frontend Dependencies (Optional for host tooling)
 
 ```bash
-docker compose down -v
-docker compose up --build
+cd frontend
+npm install
+cd ..
 ```
 
-## Configuration
+### 3. Build & Start with Docker Compose
 
-Backend config lives in `backend/.env` (copy from `backend/.env.example`). Key variables:
+```bash
+docker compose up --build -d
+```
 
-| Variable | Purpose |
-|---|---|
-| `GEMINI_API_KEY` | Required for real AI scoring. Without it, evaluations still run (static analysis, plagiarism, sandbox, transcription) but AI-judged rubric fields fall back to a degraded score (`ai_evaluation_degraded: true` in the report). |
-| `GEMINI_MODEL` / `GEMINI_MODEL_FALLBACKS` | Model + comma-separated fallback list, tried in order if a model is unavailable. |
-| `DOCKER_SANDBOX_ENABLED` | Disable to skip sandboxed code execution (e.g. if the host can't do Docker-outside-of-Docker). |
-| `SMTP_HOST` (+ `SMTP_PORT`/`SMTP_USERNAME`/`SMTP_PASSWORD`) | If unset, judge invite emails aren't actually sent — the invite link comes back directly in the API response instead. Set these to wire in real email delivery; no code changes needed. |
-| `CORS_ORIGINS` | Comma-separated allow-list of frontend origins. |
-| `MAX_ZIP_SIZE_MB` / `MAX_PPT_SIZE_MB` / `MAX_VIDEO_SIZE_MB`, `VIDEO_MIN_DURATION_SECONDS` / `VIDEO_MAX_DURATION_SECONDS` | Upload validation limits (PRD: demo video 3–5 minutes, ≤50MB). |
+### 4. Access the Application
 
-Frontend config is `frontend/.env` (copy from `frontend/.env.example`) — `VITE_API_BASE_URL` must stay host-reachable (`http://localhost:8000`), since it's shipped to the browser rather than resolved inside the Docker network.
+- **Frontend App**: [http://localhost:5173](http://localhost:5173)
+- **API Swagger Documentation**: [http://localhost:8090/docs](http://localhost:8090/docs)
+- **API ReDoc**: [http://localhost:8090/redoc](http://localhost:8090/redoc)
 
-Full list of variables and their defaults: `backend/app/config.py`.
+---
 
-## Running tests
+## User Roles & Workflows
+
+1. **Organizer**:
+   - Register an organizer account at `/register`.
+   - Create a hackathon with custom rubric weights (Technical, Innovation, UI/UX, Business Impact, Documentation, Presentation).
+   - Invite judges individually or in bulk via CSV upload (`/invite-judges-csv`).
+   - Monitor live leaderboard, plagiarism flags, and pitch deck relevance reports.
+
+2. **Participant**:
+   - Register a participant account.
+   - Create or join a team via a 6-character team invite code.
+   - Submit a GitHub repository link or upload a ZIP archive, PPTX slide deck, and demo video.
+   - Track evaluation progress in real time through Celery task polling.
+
+3. **Judge**:
+   - Joined via secure one-time invite token (judges cannot sign up publicly).
+   - Review comprehensive AI evaluation reports with code citations.
+   - Submit manual score overrides with mandatory justification logs.
+
+---
+
+## Configuration Reference
+
+Key settings in `backend/.env`:
+
+| Variable | Default | Description |
+|---|---|---|
+| `SECRET_KEY` | — | JWT signing key. |
+| `DATABASE_URL` | `postgresql://postgres:postgres@localhost:5432/hackeval_db` | Postgres connection string. |
+| `GROQ_API_KEY` | — | API key for timeline, plagiarism, and repo verification agents. |
+| `GROQ_MODEL` | `openai/gpt-oss-120b` | Primary Groq model (`openai/gpt-oss-20b` as fallback). |
+| `GEMINI_API_KEY` | — | API key for multimodal pitch deck analysis. |
+| `GEMINI_MODEL` | `gemini-3.6-flash` | Gemini model for vision inspection. |
+| `DOCKER_SANDBOX_ENABLED` | `true` | Enables/disables sibling container code execution. |
+| `DOCKER_MEMORY_LIMIT` | `512m` | Memory ceiling per submission sandbox. |
+| `DOCKER_TIMEOUT_SECONDS`| `60` | Execution timeout for sandbox test suites. |
+| `MAX_ZIP_SIZE_MB` | `100` | Maximum source code ZIP upload size. |
+| `MAX_PPT_SIZE_MB` | `25` | Maximum presentation slide upload size. |
+| `MAX_VIDEO_SIZE_MB` | `50` | Maximum demo video upload size. |
+| `VIDEO_MIN_DURATION_SECONDS` | `180` (3m) | Minimum demo video length enforced via `ffprobe`. |
+| `VIDEO_MAX_DURATION_SECONDS` | `300` (5m) | Maximum demo video length enforced via `ffprobe`. |
+| `SMTP_HOST` | *(empty)* | SMTP server for judge invites. When blank, invites output `dev_invite_link` directly. |
+
+---
+
+## Testing & Quality Assurance
+
+### Run Backend Test Suite
+
+The test suite runs against an isolated PostgreSQL database (`hackeval_test`) inside the Docker container:
 
 ```bash
 docker compose exec api pytest -q
 ```
 
-Tests run against a real Postgres database (`hackeval_test`, created alongside the main `hackeval_db`) with Celery in eager mode — no separate test infrastructure needed beyond the compose stack already being up. Gemini/Docker-sandbox/Whisper calls are mocked at the service boundary in the automated suite; the real integrations are verified manually (see below).
+All 98 tests cover:
+- Authentication, RBAC, and Token handling
+- File validation (zip-slip guards, MIME verification, ffprobe duration checks)
+- Static analysis & AI-generated code detection heuristics
+- AST-based plagiarism MinHash fingerprinting
+- The 4 AI evaluation agents with mock and degraded-mode resilience
+- Celery task pipeline and score aggregation logic
 
-## Manual / end-to-end verification
+### Frontend Linting & Type Checking
 
-The automated suite mocks the slow, external-service-dependent parts of the pipeline (Gemini, Docker sandbox execution, Whisper). To verify the real integrations end-to-end:
-
-1. `docker compose up --build` from a clean state.
-2. Register an organizer, create a hackathon.
-3. Register a participant (separate session), create a team, submit a project with a GitHub URL or ZIP.
-4. Watch the submission move through evaluation on the **AI Evaluation** tab — this is polling the real Celery task, which runs real static analysis, plagiarism fingerprinting, sandboxed execution, and a real Gemini API call.
-5. From the organizer dashboard, invite a judge; accept the invite link and submit a score override.
-6. Confirm the leaderboard reflects the override.
-
-## Known scope decisions
-
-- **Styling**: the frontend keeps its original hand-written CSS/JSX rather than adopting the PRD's named Tailwind/Shadcn/Framer Motion stack. This was a deliberate, flagged trade-off — swapping the styling system is cosmetic and orthogonal to making the platform's actual AI/security behavior real, which is where the original gap against the PRD mattered.
-- **"Publish Winner Ranks"** (organizer leaderboard tab) is an intentionally disabled stub with an explanatory tooltip — there's no backing endpoint for locking/publishing results, and the button was left honest rather than wired to a fake success.
-- **Judges are invite-only**: public signup only accepts `participant`/`organizer`; `judge` accounts are created at invite-accept time.
-
-## Project structure
-
+```bash
+cd frontend
+npm run lint
+npm run build
 ```
-backend/
-  app/
-    routers/       FastAPI route handlers
-    services/       static analysis, plagiarism, sandbox, whisper/ppt, gemini client
-    tasks/          Celery task definitions
-    models.py, schemas.py, config.py, auth.py
-  alembic/          database migrations
-  tests/            pytest suite (phase-numbered, matching the build history)
-frontend/
-  src/
-    components/     dashboards (Organizer/Participant/Judge), auth pages
-    context/        AuthContext (JWT session state)
-    hooks/          useAsyncAction, useTaskPolling
-    lib/            apiClient, shared types
-docker-compose.yml
+
+---
+
+## Resetting the Environment
+
+To stop all services and wipe the database and named volumes for a fresh start:
+
+```bash
+docker compose down -v
+docker compose up --build -d
 ```

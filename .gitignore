@@ -14,8 +14,10 @@ backend/uploads/*
 
 # Env / secrets
 .env
-backend/.env
-frontend/.env
+*.env
+backend/.env*
+backend/env
+frontend/.env*
 
 # Node
 node_modules/
