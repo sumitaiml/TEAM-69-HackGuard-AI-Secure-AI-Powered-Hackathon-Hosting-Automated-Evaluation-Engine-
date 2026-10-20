@@ -119,7 +119,25 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentRole, activeTab, setAct
         <button
           onClick={logout}
           title="Sign out"
-          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex' }}
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: '6px',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
+            e.currentTarget.style.transform = 'scale(1.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
         >
           <LogOut size={16} style={{ color: '#9CA3AF' }} />
         </button>
@@ -153,7 +171,22 @@ const NavItem: React.FC<NavItemProps> = ({ icon, label, active, onClick }) => {
         cursor: 'pointer',
         textAlign: 'left',
         width: '100%',
-        transition: 'all 0.2s'
+        transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+        boxShadow: active ? '0 4px 14px rgba(43, 127, 255, 0.35)' : 'none',
+      }}
+      onMouseEnter={(e) => {
+        if (!active) {
+          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.06)';
+          e.currentTarget.style.color = '#FFFFFF';
+          e.currentTarget.style.transform = 'translateX(4px)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!active) {
+          e.currentTarget.style.backgroundColor = 'transparent';
+          e.currentTarget.style.color = '#9CA3AF';
+          e.currentTarget.style.transform = 'translateX(0)';
+        }
       }}
     >
       {icon}

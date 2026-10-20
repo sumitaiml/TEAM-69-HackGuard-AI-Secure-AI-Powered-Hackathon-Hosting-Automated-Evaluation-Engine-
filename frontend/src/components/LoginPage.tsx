@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Lock, Mail, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -55,7 +55,22 @@ export const LoginPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [forgotSubmitted, setForgotSubmitted] = useState(false);
-  const [comingSoonProvider, setComingSoonProvider] = useState<'Google' | 'GitHub' | null>(null);
+  const [activeToast, setActiveToast] = useState<'google' | 'github' | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const triggerToast = (target: 'google' | 'github') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setActiveToast(target);
+    toastTimerRef.current = setTimeout(() => {
+      setActiveToast(null);
+    }, 1000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     const oauthComingSoon = searchParams.get('oauth_coming_soon');
@@ -63,12 +78,11 @@ export const LoginPage: React.FC = () => {
     const token = searchParams.get('token');
 
     if (oauthComingSoon) {
-      setComingSoonProvider(oauthComingSoon.toLowerCase().includes('github') ? 'GitHub' : 'Google');
+      triggerToast(oauthComingSoon.toLowerCase().includes('github') ? 'github' : 'google');
       navigate('/login', { replace: true });
     } else if (oauthError) {
-      // Instead of displaying technical configuration error banner, pop up the user-friendly "Coming Soon" modal
       if (oauthError.toLowerCase().includes('not configured') || oauthError.toLowerCase().includes('oauth')) {
-        setComingSoonProvider(oauthError.toLowerCase().includes('github') ? 'GitHub' : 'Google');
+        triggerToast(oauthError.toLowerCase().includes('github') ? 'github' : 'google');
         navigate('/login', { replace: true });
       } else {
         setError(oauthError);
@@ -93,11 +107,11 @@ export const LoginPage: React.FC = () => {
   }, [searchParams, setSession, navigate]);
 
   const handleGoogleLogin = () => {
-    setComingSoonProvider('Google');
+    triggerToast('google');
   };
 
   const handleGitHubLogin = () => {
-    setComingSoonProvider('GitHub');
+    triggerToast('github');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -221,8 +235,9 @@ export const LoginPage: React.FC = () => {
                       fontSize: '14px',
                       fontWeight: '700',
                       cursor: 'pointer',
-                      boxShadow: mode === 'signin' ? '0 2px 6px rgba(0,0,0,0.05)' : 'none',
-                      transition: 'all 0.2s'
+                      boxShadow: mode === 'signin' ? '0 2px 6px rgba(0,0,0,0.08)' : 'none',
+                      transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                      transform: mode === 'signin' ? 'scale(1)' : 'none',
                     }}
                   >
                     Sign In
@@ -239,8 +254,9 @@ export const LoginPage: React.FC = () => {
                       fontSize: '14px',
                       fontWeight: '700',
                       cursor: 'pointer',
-                      boxShadow: mode === 'signup' ? '0 2px 6px rgba(0,0,0,0.05)' : 'none',
-                      transition: 'all 0.2s'
+                      boxShadow: mode === 'signup' ? '0 2px 6px rgba(0,0,0,0.08)' : 'none',
+                      transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                      transform: mode === 'signup' ? 'scale(1)' : 'none',
                     }}
                   >
                     Create Account
@@ -399,8 +415,21 @@ export const LoginPage: React.FC = () => {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  transition: 'background 0.2s',
+                  transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
                   opacity: isSubmitting ? 0.7 : 1,
+                  boxShadow: '0 4px 12px rgba(24, 25, 28, 0.15)',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isSubmitting) {
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 8px 24px rgba(24, 25, 28, 0.25)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isSubmitting) {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(24, 25, 28, 0.15)';
+                  }
                 }}
               >
                 {isSubmitting
@@ -424,75 +453,161 @@ export const LoginPage: React.FC = () => {
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <button
-                      type="button"
-                      onClick={handleGoogleLogin}
-                      disabled={isSubmitting}
-                      style={{
-                        width: '100%',
-                        background: '#FFFFFF',
-                        color: '#374151',
-                        border: '1px solid #E5E7EB',
-                        borderRadius: '99px',
-                        padding: '12px',
-                        fontSize: '14px',
-                        fontWeight: '600',
-                        cursor: isSubmitting ? 'default' : 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '10px',
-                        boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-                        transition: 'all 0.2s',
-                        opacity: isSubmitting ? 0.7 : 1,
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#F9FAFB';
-                        e.currentTarget.style.borderColor = '#D1D5DB';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#FFFFFF';
-                        e.currentTarget.style.borderColor = '#E5E7EB';
-                      }}
-                    >
-                      <GoogleIcon />
-                      Continue with Google
-                    </button>
+                    {/* Continue with Google */}
+                    <div style={{ position: 'relative', width: '100%' }}>
+                      <button
+                        type="button"
+                        onClick={handleGoogleLogin}
+                        disabled={isSubmitting}
+                        style={{
+                          width: '100%',
+                          background: '#FFFFFF',
+                          color: '#374151',
+                          border: '1px solid #E5E7EB',
+                          borderRadius: '99px',
+                          padding: '12px',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          cursor: isSubmitting ? 'default' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '10px',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                          transition: 'all 0.2s',
+                          opacity: isSubmitting ? 0.7 : 1,
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#F9FAFB';
+                          e.currentTarget.style.borderColor = '#D1D5DB';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = '#FFFFFF';
+                          e.currentTarget.style.borderColor = '#E5E7EB';
+                        }}
+                      >
+                        <GoogleIcon />
+                        Continue with Google
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={handleGitHubLogin}
-                      disabled={isSubmitting}
-                      style={{
-                        width: '100%',
-                        background: '#FFFFFF',
-                        color: '#374151',
-                        border: '1px solid #E5E7EB',
-                        borderRadius: '99px',
-                        padding: '12px',
-                        fontSize: '14px',
-                        fontWeight: '600',
-                        cursor: isSubmitting ? 'default' : 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '10px',
-                        boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-                        transition: 'all 0.2s',
-                        opacity: isSubmitting ? 0.7 : 1,
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#F9FAFB';
-                        e.currentTarget.style.borderColor = '#D1D5DB';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#FFFFFF';
-                        e.currentTarget.style.borderColor = '#E5E7EB';
-                      }}
-                    >
-                      <GitHubIcon />
-                      Continue with GitHub
-                    </button>
+                      {activeToast === 'google' && (
+                        <div
+                          role="status"
+                          style={{
+                            position: 'absolute',
+                            left: 'calc(100% + 12px)',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            background: '#18191C',
+                            color: '#FFFFFF',
+                            padding: '8px 16px',
+                            borderRadius: '99px',
+                            fontSize: '12px',
+                            fontWeight: '700',
+                            whiteSpace: 'nowrap',
+                            boxShadow: '0 4px 14px rgba(0, 0, 0, 0.18)',
+                            zIndex: 50,
+                            pointerEvents: 'none',
+                            letterSpacing: '0.02em',
+                            display: 'flex',
+                            alignItems: 'center',
+                            animation: 'popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                          }}
+                        >
+                          <div
+                            style={{
+                              position: 'absolute',
+                              left: '-4px',
+                              top: '50%',
+                              transform: 'translateY(-50%) rotate(45deg)',
+                              width: '8px',
+                              height: '8px',
+                              background: '#18191C',
+                            }}
+                          />
+                          Coming soon
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Continue with GitHub */}
+                    <div style={{ position: 'relative', width: '100%' }}>
+                      <button
+                        type="button"
+                        onClick={handleGitHubLogin}
+                        disabled={isSubmitting}
+                        style={{
+                          width: '100%',
+                          background: '#FFFFFF',
+                          color: '#374151',
+                          border: '1px solid #E5E7EB',
+                          borderRadius: '99px',
+                          padding: '12px',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          cursor: isSubmitting ? 'default' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '10px',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                          transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                          opacity: isSubmitting ? 0.7 : 1,
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#F9FAFB';
+                          e.currentTarget.style.borderColor = '#D1D5DB';
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = '#FFFFFF';
+                          e.currentTarget.style.borderColor = '#E5E7EB';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }}
+                      >
+                        <GitHubIcon />
+                        Continue with GitHub
+                      </button>
+
+                      {activeToast === 'github' && (
+                        <div
+                          role="status"
+                          style={{
+                            position: 'absolute',
+                            left: 'calc(100% + 12px)',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            background: '#18191C',
+                            color: '#FFFFFF',
+                            padding: '8px 16px',
+                            borderRadius: '99px',
+                            fontSize: '12px',
+                            fontWeight: '700',
+                            whiteSpace: 'nowrap',
+                            boxShadow: '0 4px 14px rgba(0, 0, 0, 0.18)',
+                            zIndex: 50,
+                            pointerEvents: 'none',
+                            letterSpacing: '0.02em',
+                            display: 'flex',
+                            alignItems: 'center',
+                            animation: 'popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                          }}
+                        >
+                          <div
+                            style={{
+                              position: 'absolute',
+                              left: '-4px',
+                              top: '50%',
+                              transform: 'translateY(-50%) rotate(45deg)',
+                              width: '8px',
+                              height: '8px',
+                              background: '#18191C',
+                            }}
+                          />
+                          Coming soon
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </>
               )}
@@ -505,134 +620,6 @@ export const LoginPage: React.FC = () => {
             <span>© 2026 HackEval</span>
           </div>
         </div>
-
-      {/* "Coming Soon" Modal Popup */}
-      {comingSoonProvider && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.45)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: '20px',
-          }}
-          onClick={() => setComingSoonProvider(null)}
-        >
-          <div
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderRadius: '24px',
-              padding: '36px 32px',
-              maxWidth: '420px',
-              width: '100%',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-              textAlign: 'center',
-              position: 'relative',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Close Button */}
-            <button
-              type="button"
-              onClick={() => setComingSoonProvider(null)}
-              style={{
-                position: 'absolute',
-                top: '16px',
-                right: '16px',
-                background: '#F3F4F6',
-                border: 'none',
-                borderRadius: '50%',
-                width: '32px',
-                height: '32px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                color: '#6B7280',
-                fontSize: '18px',
-                fontWeight: '700',
-                lineHeight: 1,
-              }}
-              aria-label="Close"
-            >
-              ×
-            </button>
-
-            {/* Provider Icon in Circle */}
-            <div
-              style={{
-                width: '64px',
-                height: '64px',
-                borderRadius: '20px',
-                background: comingSoonProvider === 'Google' ? '#F0F5FF' : '#F3F4F6',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: '16px',
-                transform: 'scale(1.25)',
-              }}
-            >
-              {comingSoonProvider === 'Google' ? <GoogleIcon /> : <GitHubIcon />}
-            </div>
-
-            {/* Coming Soon Pill Tag */}
-            <span
-              style={{
-                background: '#FEF3C7',
-                color: '#92400E',
-                fontSize: '11px',
-                fontWeight: '800',
-                padding: '4px 12px',
-                borderRadius: '99px',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                marginBottom: '12px',
-              }}
-            >
-              Feature In Progress
-            </span>
-
-            {/* Heading */}
-            <h3 style={{ fontSize: '22px', fontWeight: '800', color: '#111827', margin: '0 0 8px' }}>
-              Coming Soon
-            </h3>
-
-            {/* Subtitle */}
-            <p style={{ fontSize: '13px', color: '#6B7280', lineHeight: '1.6', margin: '0 0 24px' }}>
-              <strong>Continue with {comingSoonProvider}</strong> is currently under development and will be available in an upcoming release. Please sign in with your email and password for now.
-            </p>
-
-            {/* Action Pill Button */}
-            <button
-              type="button"
-              onClick={() => setComingSoonProvider(null)}
-              style={{
-                width: '100%',
-                background: '#18191C',
-                color: '#FFFFFF',
-                border: 'none',
-                borderRadius: '99px',
-                padding: '12px 24px',
-                fontSize: '14px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                transition: 'background 0.2s',
-              }}
-            >
-              Got it, continue with email
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
