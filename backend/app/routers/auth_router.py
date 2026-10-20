@@ -1,7 +1,10 @@
 import secrets
 from datetime import datetime, timedelta
+from urllib.parse import urlencode, quote_plus
+import httpx
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -175,3 +178,179 @@ def accept_judge_invite(token: str, accept_in: schemas.InviteAcceptRequest, db: 
 
     access_token = create_access_token(data={"sub": new_user.id, "role": new_user.role})
     return {"access_token": access_token, "token_type": "bearer", "user": new_user}
+
+
+# =====================================================================
+# OAuth 2.0 (Google & GitHub)
+# =====================================================================
+
+def _get_or_create_oauth_user(email: str, name: str, db: Session) -> str:
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user:
+        user = models.User(
+            email=email,
+            hashed_password=get_password_hash(secrets.token_hex(32)),
+            full_name=name or email.split("@")[0],
+            role="participant",
+            is_verified=True,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    return create_access_token(data={"sub": user.id, "role": user.role})
+
+
+@router.get("/oauth/google")
+def oauth_google_login():
+    if not settings.GOOGLE_CLIENT_ID or not settings.GOOGLE_CLIENT_SECRET:
+        error_msg = "Google OAuth is not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in backend/.env"
+        return RedirectResponse(f"{settings.FRONTEND_BASE_URL}/login?oauth_error={quote_plus(error_msg)}")
+
+    redirect_uri = f"{settings.BACKEND_BASE_URL}/api/auth/oauth/google/callback"
+    params = {
+        "client_id": settings.GOOGLE_CLIENT_ID,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "access_type": "offline",
+        "prompt": "select_account",
+    }
+    return RedirectResponse(f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}")
+
+
+@router.get("/oauth/google/callback")
+async def oauth_google_callback(
+    code: str = None,
+    error: str = None,
+    db: Session = Depends(get_db),
+):
+    if error:
+        return RedirectResponse(f"{settings.FRONTEND_BASE_URL}/login?oauth_error={quote_plus(error)}")
+    if not code:
+        return RedirectResponse(f"{settings.FRONTEND_BASE_URL}/login?oauth_error={quote_plus('Authorization code missing from Google callback')}")
+
+    redirect_uri = f"{settings.BACKEND_BASE_URL}/api/auth/oauth/google/callback"
+    async with httpx.AsyncClient() as client:
+        token_res = await client.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "code": code,
+                "client_id": settings.GOOGLE_CLIENT_ID,
+                "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                "redirect_uri": redirect_uri,
+                "grant_type": "authorization_code",
+            },
+            headers={"Accept": "application/json"},
+        )
+        if token_res.status_code != 200:
+            return RedirectResponse(f"{settings.FRONTEND_BASE_URL}/login?oauth_error={quote_plus('Failed to exchange authorization code with Google')}")
+
+        token_data = token_res.json()
+        google_access_token = token_data.get("access_token")
+        if not google_access_token:
+            return RedirectResponse(f"{settings.FRONTEND_BASE_URL}/login?oauth_error={quote_plus('Google did not return an access token')}")
+
+        userinfo_res = await client.get(
+            "https://www.googleapis.com/oauth2/v2/userinfo",
+            headers={"Authorization": f"Bearer {google_access_token}"},
+        )
+        if userinfo_res.status_code != 200:
+            return RedirectResponse(f"{settings.FRONTEND_BASE_URL}/login?oauth_error={quote_plus('Failed to fetch user profile from Google')}")
+
+        user_info = userinfo_res.json()
+        email = user_info.get("email")
+        if not email:
+            return RedirectResponse(f"{settings.FRONTEND_BASE_URL}/login?oauth_error={quote_plus('No email found in Google account profile')}")
+
+        name = user_info.get("name") or email.split("@")[0]
+        token = _get_or_create_oauth_user(email=email, name=name, db=db)
+        return RedirectResponse(f"{settings.FRONTEND_BASE_URL}/login?token={token}")
+
+
+@router.get("/oauth/github")
+def oauth_github_login():
+    if not settings.GITHUB_CLIENT_ID or not settings.GITHUB_CLIENT_SECRET:
+        error_msg = "GitHub OAuth is not configured. Please set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET in backend/.env"
+        return RedirectResponse(f"{settings.FRONTEND_BASE_URL}/login?oauth_error={quote_plus(error_msg)}")
+
+    redirect_uri = f"{settings.BACKEND_BASE_URL}/api/auth/oauth/github/callback"
+    params = {
+        "client_id": settings.GITHUB_CLIENT_ID,
+        "redirect_uri": redirect_uri,
+        "scope": "read:user user:email",
+    }
+    return RedirectResponse(f"https://github.com/login/oauth/authorize?{urlencode(params)}")
+
+
+@router.get("/oauth/github/callback")
+async def oauth_github_callback(
+    code: str = None,
+    error: str = None,
+    error_description: str = None,
+    db: Session = Depends(get_db),
+):
+    if error or error_description:
+        msg = error_description or error or "GitHub authorization failed"
+        return RedirectResponse(f"{settings.FRONTEND_BASE_URL}/login?oauth_error={quote_plus(msg)}")
+    if not code:
+        return RedirectResponse(f"{settings.FRONTEND_BASE_URL}/login?oauth_error={quote_plus('Authorization code missing from GitHub callback')}")
+
+    redirect_uri = f"{settings.BACKEND_BASE_URL}/api/auth/oauth/github/callback"
+    async with httpx.AsyncClient() as client:
+        token_res = await client.post(
+            "https://github.com/login/oauth/access_token",
+            data={
+                "code": code,
+                "client_id": settings.GITHUB_CLIENT_ID,
+                "client_secret": settings.GITHUB_CLIENT_SECRET,
+                "redirect_uri": redirect_uri,
+            },
+            headers={"Accept": "application/json"},
+        )
+        if token_res.status_code != 200:
+            return RedirectResponse(f"{settings.FRONTEND_BASE_URL}/login?oauth_error={quote_plus('Failed to exchange authorization code with GitHub')}")
+
+        token_data = token_res.json()
+        gh_access_token = token_data.get("access_token")
+        if not gh_access_token:
+            err_desc = token_data.get("error_description", "GitHub did not return an access token")
+            return RedirectResponse(f"{settings.FRONTEND_BASE_URL}/login?oauth_error={quote_plus(err_desc)}")
+
+        user_res = await client.get(
+            "https://api.github.com/user",
+            headers={
+                "Authorization": f"Bearer {gh_access_token}",
+                "Accept": "application/vnd.github.v3+json",
+                "User-Agent": "HackEval-OAuth",
+            },
+        )
+        if user_res.status_code != 200:
+            return RedirectResponse(f"{settings.FRONTEND_BASE_URL}/login?oauth_error={quote_plus('Failed to fetch user profile from GitHub')}")
+
+        gh_user = user_res.json()
+        email = gh_user.get("email")
+        name = gh_user.get("name") or gh_user.get("login") or "GitHub User"
+
+        if not email:
+            emails_res = await client.get(
+                "https://api.github.com/user/emails",
+                headers={
+                    "Authorization": f"Bearer {gh_access_token}",
+                    "Accept": "application/vnd.github.v3+json",
+                    "User-Agent": "HackEval-OAuth",
+                },
+            )
+            if emails_res.status_code == 200:
+                emails_list = emails_res.json()
+                for e in emails_list:
+                    if e.get("primary") and e.get("verified"):
+                        email = e.get("email")
+                        break
+                if not email and emails_list:
+                    email = emails_list[0].get("email")
+
+        if not email:
+            return RedirectResponse(f"{settings.FRONTEND_BASE_URL}/login?oauth_error={quote_plus('No verified email found for this GitHub account')}")
+
+        token = _get_or_create_oauth_user(email=email, name=name, db=db)
+        return RedirectResponse(f"{settings.FRONTEND_BASE_URL}/login?token={token}")

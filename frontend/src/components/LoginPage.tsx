@@ -1,16 +1,50 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Lock, Mail, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { api, ApiError, formatApiError } from '../lib/apiClient';
+import { api, ApiError, formatApiError, API_BASE_URL, setToken } from '../lib/apiClient';
+import type { AuthUser } from '../lib/types';
+
+// Crisp official brand icons
+const GoogleIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
+      fill="#4285F4"
+    />
+    <path
+      d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"
+      fill="#34A853"
+    />
+    <path
+      d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 10.04 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
+      fill="#FBBC05"
+    />
+    <path
+      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+      fill="#EA4335"
+    />
+  </svg>
+);
+
+const GitHubIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="#24292F" xmlns="http://www.w3.org/2000/svg">
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"
+    />
+  </svg>
+);
 
 // Judges don't self-register - they accept an invite from an organizer
 // (see AcceptInvitePage) - so signup only ever offers these two roles.
 const SELF_REGISTERABLE_ROLES = ['participant', 'organizer'] as const;
 
 export const LoginPage: React.FC = () => {
-  const { login, register } = useAuth();
+  const { login, register, setSession } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
   const [email, setEmail] = useState('');
@@ -21,6 +55,39 @@ export const LoginPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [forgotSubmitted, setForgotSubmitted] = useState(false);
+
+  useEffect(() => {
+    const oauthError = searchParams.get('oauth_error');
+    const token = searchParams.get('token');
+
+    if (oauthError) {
+      setError(oauthError);
+    } else if (token) {
+      setIsSubmitting(true);
+      setToken(token);
+      api
+        .get<AuthUser>('/api/auth/me')
+        .then((user) => {
+          setSession(token, user);
+          navigate('/', { replace: true });
+        })
+        .catch(() => {
+          setToken(null);
+          setError('Failed to retrieve account details after social login.');
+        })
+        .finally(() => {
+          setIsSubmitting(false);
+        });
+    }
+  }, [searchParams, setSession, navigate]);
+
+  const handleGoogleLogin = () => {
+    window.location.href = `${API_BASE_URL}/api/auth/oauth/google`;
+  };
+
+  const handleGitHubLogin = () => {
+    window.location.href = `${API_BASE_URL}/api/auth/oauth/github`;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -333,6 +400,91 @@ export const LoginPage: React.FC = () => {
                   ? 'Create Account'
                   : 'Send Reset Link'} <ArrowRight size={18} />
               </button>
+
+              {/* Divider and OAuth Social Login Options */}
+              {mode !== 'forgot' && (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0 16px', gap: '12px' }}>
+                    <div style={{ flex: 1, height: '1px', background: '#E5E7EB' }} />
+                    <span style={{ fontSize: '11px', fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      OR
+                    </span>
+                    <div style={{ flex: 1, height: '1px', background: '#E5E7EB' }} />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <button
+                      type="button"
+                      onClick={handleGoogleLogin}
+                      disabled={isSubmitting}
+                      style={{
+                        width: '100%',
+                        background: '#FFFFFF',
+                        color: '#374151',
+                        border: '1px solid #E5E7EB',
+                        borderRadius: '99px',
+                        padding: '12px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        cursor: isSubmitting ? 'default' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '10px',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                        transition: 'all 0.2s',
+                        opacity: isSubmitting ? 0.7 : 1,
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#F9FAFB';
+                        e.currentTarget.style.borderColor = '#D1D5DB';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = '#FFFFFF';
+                        e.currentTarget.style.borderColor = '#E5E7EB';
+                      }}
+                    >
+                      <GoogleIcon />
+                      Continue with Google
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleGitHubLogin}
+                      disabled={isSubmitting}
+                      style={{
+                        width: '100%',
+                        background: '#FFFFFF',
+                        color: '#374151',
+                        border: '1px solid #E5E7EB',
+                        borderRadius: '99px',
+                        padding: '12px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        cursor: isSubmitting ? 'default' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '10px',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                        transition: 'all 0.2s',
+                        opacity: isSubmitting ? 0.7 : 1,
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#F9FAFB';
+                        e.currentTarget.style.borderColor = '#D1D5DB';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = '#FFFFFF';
+                        e.currentTarget.style.borderColor = '#E5E7EB';
+                      }}
+                    >
+                      <GitHubIcon />
+                      Continue with GitHub
+                    </button>
+                  </div>
+                </>
+              )}
             </form>
             )}
           </div>
