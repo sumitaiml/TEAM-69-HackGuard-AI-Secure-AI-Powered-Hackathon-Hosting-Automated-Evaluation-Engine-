@@ -203,8 +203,7 @@ def _get_or_create_oauth_user(email: str, name: str, db: Session) -> str:
 @router.get("/oauth/google")
 def oauth_google_login():
     if not settings.GOOGLE_CLIENT_ID or not settings.GOOGLE_CLIENT_SECRET:
-        error_msg = "Google OAuth is not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in backend/.env"
-        return RedirectResponse(f"{settings.FRONTEND_BASE_URL}/login?oauth_error={quote_plus(error_msg)}")
+        return RedirectResponse(f"{settings.FRONTEND_BASE_URL}/login?oauth_coming_soon=Google")
 
     redirect_uri = f"{settings.BACKEND_BASE_URL}/api/auth/oauth/google/callback"
     params = {
@@ -270,8 +269,7 @@ async def oauth_google_callback(
 @router.get("/oauth/github")
 def oauth_github_login():
     if not settings.GITHUB_CLIENT_ID or not settings.GITHUB_CLIENT_SECRET:
-        error_msg = "GitHub OAuth is not configured. Please set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET in backend/.env"
-        return RedirectResponse(f"{settings.FRONTEND_BASE_URL}/login?oauth_error={quote_plus(error_msg)}")
+        return RedirectResponse(f"{settings.FRONTEND_BASE_URL}/login?oauth_coming_soon=GitHub")
 
     redirect_uri = f"{settings.BACKEND_BASE_URL}/api/auth/oauth/github/callback"
     params = {
