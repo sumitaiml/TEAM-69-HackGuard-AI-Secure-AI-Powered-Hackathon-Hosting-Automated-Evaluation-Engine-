@@ -40,7 +40,7 @@ def send_judge_invite_email(to_email: str, invite_link: str, hackathon_title: st
     )
 
     try:
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=5) as server:
             if settings.SMTP_USE_TLS:
                 server.starttls()
             if settings.SMTP_USERNAME:
@@ -75,7 +75,7 @@ def _send_simple_email(to_email: str, subject: str, body: str, link: str) -> Opt
     message.set_content(body)
 
     try:
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=5) as server:
             if settings.SMTP_USE_TLS:
                 server.starttls()
             if settings.SMTP_USERNAME:

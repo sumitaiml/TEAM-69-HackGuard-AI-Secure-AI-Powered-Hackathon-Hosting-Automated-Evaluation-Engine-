@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from urllib.parse import urlencode, quote_plus
 import httpx
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -18,7 +18,7 @@ from app.services.email_service import send_password_reset_email, send_verificat
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 @router.post("/register", response_model=schemas.Token, status_code=status.HTTP_201_CREATED)
-def register(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
+def register(user_in: schemas.UserCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     existing = db.query(models.User).filter(models.User.email == user_in.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -35,12 +35,10 @@ def register(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    # Verification is informational, not a login gate - a hackathon-scale MVP
-    # shouldn't add friction to registration, so is_verified has no effect on
-    # auth today. Sent fire-and-forget; a delivery failure here must not
-    # block account creation itself.
+    # Verification is informational, not a login gate - dispatch asynchronously in background
+    # so SMTP network latency or timeouts never block the user's registration.
     verify_link = f"{settings.FRONTEND_BASE_URL}/verify-email?token={new_user.verification_token}"
-    send_verification_email(new_user.email, verify_link)
+    background_tasks.add_task(send_verification_email, new_user.email, verify_link)
 
     token = create_access_token(data={"sub": new_user.id, "role": new_user.role})
     return {"access_token": token, "token_type": "bearer", "user": new_user}
