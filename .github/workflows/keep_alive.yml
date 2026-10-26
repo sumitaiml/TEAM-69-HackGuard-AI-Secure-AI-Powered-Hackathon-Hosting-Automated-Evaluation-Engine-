@@ -1,0 +1,22 @@
+name: Keep Render Backend Alive
+
+on:
+  schedule:
+    # Runs every 10 minutes to prevent Render free-tier cold sleep
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render Backend
+        run: |
+          echo "Pinging Render backend at https://hackeval-api-c6pq.onrender.com/ ..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://hackeval-api-c6pq.onrender.com/)
+          echo "Response HTTP Status: $STATUS"
+          if [ "$STATUS" -eq 200 ]; then
+            echo "Render backend is active and healthy!"
+          else
+            echo "Warning: Response code $STATUS"
+          fi
