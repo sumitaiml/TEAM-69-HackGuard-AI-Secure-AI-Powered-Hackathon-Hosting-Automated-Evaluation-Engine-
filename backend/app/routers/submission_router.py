@@ -12,6 +12,7 @@ from app.services.upload_validation import (
     ALLOWED_ZIP_EXTENSIONS,
     ALLOWED_PPT_EXTENSIONS,
     ALLOWED_VIDEO_EXTENSIONS,
+    ALLOWED_README_EXTENSIONS,
     validate_extension,
     save_upload_streamed,
     validate_zip_structure,
@@ -51,6 +52,7 @@ async def submit_project(
     zip_file: Optional[UploadFile] = File(None),
     ppt_file: Optional[UploadFile] = File(None),
     video_file: Optional[UploadFile] = File(None),
+    readme_file: Optional[UploadFile] = File(None),
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -99,6 +101,22 @@ async def submit_project(
             "original_filename": video_file.filename,
             "size_bytes": size,
             "duration_seconds": duration,
+        }
+
+    if readme_file:
+        ext = validate_extension(readme_file.filename, ALLOWED_README_EXTENSIONS, "readme_file")
+        readme_path_saved = os.path.join(team_upload_dir, f"README{ext}")
+        size = save_upload_streamed(readme_file, readme_path_saved, settings.MAX_README_SIZE_MB, "readme_file")
+        try:
+            with open(readme_path_saved, "r", encoding="utf-8", errors="replace") as rf:
+                file_text = rf.read()
+            if file_text and file_text.strip():
+                readme_text = file_text
+        except Exception:
+            pass
+        upload_metadata["readme"] = {
+            "original_filename": readme_file.filename,
+            "size_bytes": size,
         }
 
     new_submission = models.Submission(

@@ -204,3 +204,29 @@ def test_submission_ownership_checks(client):
     # The team owner can still access it
     assert client.get(f"/api/submissions/{sub_id}", headers=headers).status_code == 200
     assert client.get(f"/api/submissions/team/{team_id}", headers=headers).status_code == 200
+
+
+def test_submission_with_readme_file_upload(client):
+    headers, team_id = _register_participant_with_team(client, "readme_uploader@hackeval.ai", "ReadmeTeam")
+    hack_id = _create_hackathon(client, "readme_org@hackeval.ai")
+
+    readme_content = b"# Dedicated Readme\nUploaded directly as a file."
+    dummy_readme = ("README.md", io.BytesIO(readme_content), "text/markdown")
+
+    upload_res = client.post(
+        "/api/submissions/upload",
+        data={
+            "hackathon_id": hack_id,
+            "team_id": team_id,
+            "tech_stack": "Python, FastAPI",
+        },
+        files={
+            "readme_file": dummy_readme,
+        },
+        headers=headers,
+    )
+    assert upload_res.status_code == 201
+    sub_data = upload_res.json()
+    assert sub_data["readme_text"] == "# Dedicated Readme\nUploaded directly as a file."
+    assert sub_data["upload_metadata_json"]["readme"]["original_filename"] == "README.md"
+

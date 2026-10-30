@@ -85,16 +85,32 @@ def extract_submission_source(submission: "models.Submission") -> Optional[str]:
     """
     src_dir = os.path.join(settings.WORKSPACE_ROOT, submission.id, "src")
 
+    def _ensure_readme_in_src(target_dir: str):
+        if submission.readme_text and os.path.isdir(target_dir):
+            readme_candidates = [
+                os.path.join(target_dir, name)
+                for name in ("README.md", "readme.md", "README.txt", "readme.txt", "README")
+            ]
+            if not any(os.path.exists(p) for p in readme_candidates):
+                try:
+                    with open(os.path.join(target_dir, "README.md"), "w", encoding="utf-8") as rf:
+                        rf.write(submission.readme_text)
+                except Exception:
+                    pass
+
     if os.path.isdir(src_dir) and os.listdir(src_dir):
+        _ensure_readme_in_src(src_dir)
         return src_dir
 
     if submission.zip_path and os.path.exists(submission.zip_path):
         safe_extract_zip(submission.zip_path, src_dir)
+        _ensure_readme_in_src(src_dir)
         return src_dir
 
     if submission.github_url:
         try:
             clone_repo(submission.github_url, src_dir)
+            _ensure_readme_in_src(src_dir)
             return src_dir
         except SourceFetchError:
             shutil.rmtree(src_dir, ignore_errors=True)

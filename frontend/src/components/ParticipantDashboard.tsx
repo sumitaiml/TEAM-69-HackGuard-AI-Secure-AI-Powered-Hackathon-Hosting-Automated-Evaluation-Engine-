@@ -186,9 +186,10 @@ export const ParticipantDashboard: React.FC<ParticipantDashboardProps> = ({
                 <span className="pill-badge blue">Latest Submission (ID: {latestSubmission.id.slice(0, 8)})</span>
                 <span style={{ fontSize: '12px', color: '#1E40AF', fontWeight: '600' }}>{new Date(latestSubmission.submitted_at).toLocaleString()}</span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', fontSize: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '16px', fontSize: '14px' }}>
                 <div><strong>GitHub URL:</strong> <br />{latestSubmission.github_url ? <a href={latestSubmission.github_url} target="_blank" rel="noreferrer" style={{ color: '#2B7FFF' }}>{latestSubmission.github_url}</a> : '—'}</div>
                 <div><strong>Tech Stack:</strong> <br />{latestSubmission.tech_stack || '—'}</div>
+                <div><strong>README:</strong> <br />{latestSubmission.readme_text ? <span className="pill-badge green">Provided ({(latestSubmission.readme_text.length).toLocaleString()} chars)</span> : '—'}</div>
                 <div><strong>Status:</strong> <br /><span className="pill-badge blue">{latestSubmission.status}</span></div>
               </div>
               {evalTaskId && <p style={{ fontSize: '12px', color: '#1E40AF', marginTop: '12px' }}>Evaluation running… ({evalTaskStatus?.status || 'queued'})</p>}
@@ -521,10 +522,25 @@ const SubmitModal: React.FC<SubmitModalProps> = ({ hackathonId, teamId, onClose,
   const [techStack, setTechStack] = useState('');
   const [liveUrl, setLiveUrl] = useState('');
   const [readmeText, setReadmeText] = useState('');
+  const [readmeFile, setReadmeFile] = useState<File | null>(null);
   const [zipFile, setZipFile] = useState<File | null>(null);
   const [pptFile, setPptFile] = useState<File | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [runEvalAfter, setRunEvalAfter] = useState(true);
+
+  const handleReadmeFileSelect = (file: File | null) => {
+    setReadmeFile(file);
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target?.result as string;
+        if (text) {
+          setReadmeText(text);
+        }
+      };
+      reader.readAsText(file);
+    }
+  };
 
   const submitAction = useAsyncAction(async () => {
     const form = new FormData();
@@ -534,6 +550,7 @@ const SubmitModal: React.FC<SubmitModalProps> = ({ hackathonId, teamId, onClose,
     if (techStack) form.append('tech_stack', techStack);
     if (liveUrl) form.append('live_url', liveUrl);
     if (readmeText) form.append('readme_text', readmeText);
+    if (readmeFile) form.append('readme_file', readmeFile);
     if (zipFile) form.append('zip_file', zipFile);
     if (pptFile) form.append('ppt_file', pptFile);
     if (videoFile) form.append('video_file', videoFile);
@@ -552,7 +569,7 @@ const SubmitModal: React.FC<SubmitModalProps> = ({ hackathonId, teamId, onClose,
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <h3 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '8px' }}>Project Asset Submission</h3>
         <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '24px' }}>
-          Upload your GitHub repository, demo video, and PPT presentation.
+          Upload your project README description, GitHub repository, code ZIP, demo video, and PPT presentation.
         </p>
 
         <form onSubmit={(e) => { e.preventDefault(); submitAction.run(); }}>
@@ -572,8 +589,45 @@ const SubmitModal: React.FC<SubmitModalProps> = ({ hackathonId, teamId, onClose,
           </div>
 
           <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>README / Project Description</label>
-            <textarea className="search-input" style={{ width: '100%', height: '80px', borderRadius: '12px' }} value={readmeText} onChange={(e) => setReadmeText(e.target.value)} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label style={{ fontSize: '13px', fontWeight: '700' }}>
+                README / Project Description
+              </label>
+              <label
+                style={{
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  color: '#2B7FFF',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: '#E8F2FF',
+                  padding: '4px 10px',
+                  borderRadius: '8px',
+                }}
+              >
+                <span>📁 Upload README File (.md / .txt)</span>
+                <input
+                  type="file"
+                  accept=".md,.markdown,.txt,.rst"
+                  onChange={(e) => handleReadmeFileSelect(e.target.files?.[0] || null)}
+                  style={{ display: 'none' }}
+                />
+              </label>
+            </div>
+            {readmeFile && (
+              <div style={{ fontSize: '12px', color: '#10B981', marginBottom: '6px', fontWeight: '700' }}>
+                ✓ Loaded from file: {readmeFile.name} ({(readmeFile.size / 1024).toFixed(1)} KB)
+              </div>
+            )}
+            <textarea
+              className="search-input"
+              style={{ width: '100%', height: '90px', borderRadius: '12px', fontFamily: 'monospace', fontSize: '12px' }}
+              value={readmeText}
+              onChange={(e) => setReadmeText(e.target.value)}
+              placeholder="# Project Title&#10;&#10;## Overview&#10;Describe your architecture, features, and instructions (or click 'Upload README File' above to attach your README.md)..."
+            />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>

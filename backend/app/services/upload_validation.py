@@ -12,6 +12,7 @@ ALLOWED_ZIP_EXTENSIONS: Set[str] = {".zip"}
 # later for real PPT parsing) only reads the .pptx Office Open XML format.
 ALLOWED_PPT_EXTENSIONS: Set[str] = {".pptx"}
 ALLOWED_VIDEO_EXTENSIONS: Set[str] = {".mp4", ".mov", ".webm", ".avi", ".mkv"}
+ALLOWED_README_EXTENSIONS: Set[str] = {".md", ".markdown", ".txt", ".rst"}
 
 _CHUNK_SIZE = 1024 * 1024  # 1MB
 
