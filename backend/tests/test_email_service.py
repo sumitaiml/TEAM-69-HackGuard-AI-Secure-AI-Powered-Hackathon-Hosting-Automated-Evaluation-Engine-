@@ -110,3 +110,36 @@ def test_sent_email_actually_carries_the_display_name(smtp_configured, monkeypat
 
     assert len(_FakeSMTPSuccess.sent_messages) == 1
     assert _FakeSMTPSuccess.sent_messages[0]["From"] == "HackEval <no-reply@hackeval.ai>"
+
+
+def test_resend_delivery_success(monkeypatch):
+    monkeypatch.setattr(email_service_module.settings, "RESEND_API_KEY", "re_test_key_123")
+    monkeypatch.setattr(email_service_module.settings, "RESEND_FROM_EMAIL", "onboarding@resend.dev")
+
+    class _FakeResponse:
+        status = 200
+        def __enter__(self):
+            return self
+        def __exit__(self, *a):
+            return False
+
+    import urllib.request
+    monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout: _FakeResponse())
+
+    result = send_judge_invite_email("judge@example.com", "http://localhost/accept?token=abc", "Test Hack")
+    assert result is None  # None = delivered successfully
+
+
+def test_resend_delivery_failure_falls_back_to_smtp(smtp_configured, monkeypatch):
+    monkeypatch.setattr(email_service_module.settings, "RESEND_API_KEY", "re_test_key_123")
+
+    import urllib.request
+    def _mock_urlopen(req, timeout):
+        raise OSError("Resend API unreachable")
+
+    monkeypatch.setattr(urllib.request, "urlopen", _mock_urlopen)
+    monkeypatch.setattr(smtplib, "SMTP", _FakeSMTPSuccess)
+
+    result = send_judge_invite_email("judge@example.com", "http://localhost/accept?token=abc", "Test Hack")
+    assert result is None  # Resend failed, but SMTP fallback succeeded!
+

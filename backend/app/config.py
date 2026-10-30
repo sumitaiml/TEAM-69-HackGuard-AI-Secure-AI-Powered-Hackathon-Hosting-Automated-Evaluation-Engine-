@@ -125,6 +125,12 @@ class Settings:
     # authenticated account - this only controls the friendly name part.
     SMTP_FROM_NAME: str = os.getenv("SMTP_FROM_NAME", "HackEval")
     SMTP_USE_TLS: bool = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
+    SMTP_TIMEOUT_SECONDS: int = int(os.getenv("SMTP_TIMEOUT_SECONDS", 15))
+
+    # Resend HTTP API support (over standard HTTPS port 443) - works on
+    # cloud hosting platforms like Render Free tier that block outbound SMTP ports (25, 465, 587).
+    RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "")
+    RESEND_FROM_EMAIL: str = os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev")
 
     @property
     def cors_origins_list(self) -> list[str]:

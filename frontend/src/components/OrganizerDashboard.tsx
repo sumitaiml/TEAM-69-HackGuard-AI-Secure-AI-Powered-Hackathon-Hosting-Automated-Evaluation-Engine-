@@ -3,7 +3,7 @@ import { MetricCard } from './MetricCard';
 import {
   Users, ShieldAlert, Sliders, Trophy, Download, Send, Plus,
   Calendar, UserPlus, Upload, Trash2, X, Sparkles, CheckCircle2,
-  FileText, CalendarDays
+  FileText, CalendarDays, Copy, Check
 } from 'lucide-react';
 import type { HackathonItem, LeaderboardEntry, RubricWeights, JudgeInviteCsvResult } from '../lib/types';
 import { api } from '../lib/apiClient';
@@ -70,8 +70,15 @@ Teams must provide a GitHub repository, live production URL, 3-min demo video, a
   const [weights, setWeights] = useState<RubricWeights | null>(null);
   const [inviteEmail, setInviteEmail] = useState('');
   const [devInviteLink, setDevInviteLink] = useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = useState<string | null>(null);
   const [csvResult, setCsvResult] = useState<JudgeInviteCsvResult | null>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
+
+  const handleCopyLink = (link: string) => {
+    navigator.clipboard.writeText(link);
+    setCopiedLink(link);
+    setTimeout(() => setCopiedLink(null), 2500);
+  };
 
   const activeHackathon = hackathons.find((h) => h.id === selectedHackathonId) || null;
 
@@ -581,9 +588,39 @@ Teams must provide a GitHub repository, live production URL, 3-min demo video, a
             </div>
             {inviteJudge.error && <p style={{ color: '#F87171', fontSize: '12px' }}>{inviteJudge.error}</p>}
             {devInviteLink && (
-              <p style={{ fontSize: '11px', color: '#9CA3AF', wordBreak: 'break-all' }}>
-                No email provider configured - share this link directly: <a href={devInviteLink} style={{ color: '#60A5FA' }}>{devInviteLink}</a>
-              </p>
+              <div style={{ marginTop: '14px', background: 'rgba(37, 99, 235, 0.08)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '12px', padding: '12px 14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: '800', color: '#93C5FD', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Judge Invitation Link
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyLink(devInviteLink)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      background: copiedLink === devInviteLink ? '#10B981' : '#2563EB',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      padding: '3px 10px',
+                      borderRadius: '99px',
+                      fontSize: '11px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    {copiedLink === devInviteLink ? (<><Check size={12} /> Copied!</>) : (<><Copy size={12} /> Copy Link</>)}
+                  </button>
+                </div>
+                <p style={{ fontSize: '11.5px', color: '#CBD5E1', margin: '0 0 6px 0', wordBreak: 'break-all', fontFamily: 'monospace' }}>
+                  {devInviteLink}
+                </p>
+                <p style={{ fontSize: '10.5px', color: '#94A3B8', margin: 0 }}>
+                  💡 Share this activation link directly with the judge to grant portal access.
+                </p>
+              </div>
             )}
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '16px 0' }}>
@@ -626,11 +663,30 @@ Teams must provide a GitHub repository, live production URL, 3-min demo video, a
                 )}
                 {csvResult.invited.some((row) => row.dev_invite_link) && (
                   <div style={{ marginTop: '8px' }}>
-                    <p style={{ color: '#6B7280', marginBottom: '4px' }}>No email provider configured - share these links directly:</p>
-                    <ul style={{ paddingLeft: '18px', lineHeight: '1.6' }}>
+                    <p style={{ color: '#6B7280', marginBottom: '6px' }}>Direct activation links generated:</p>
+                    <ul style={{ paddingLeft: '0', listStyle: 'none', margin: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       {csvResult.invited.filter((row) => row.dev_invite_link).map((row, i) => (
-                        <li key={i} style={{ wordBreak: 'break-all' }}>
-                          {row.email}: <a href={row.dev_invite_link} style={{ color: '#60A5FA' }}>{row.dev_invite_link}</a>
+                        <li key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.05)', padding: '6px 10px', borderRadius: '8px', fontSize: '11.5px' }}>
+                          <span style={{ color: '#E2E8F0', fontWeight: '600', maxWidth: '170px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.email}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyLink(row.dev_invite_link!)}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              background: copiedLink === row.dev_invite_link ? '#10B981' : '#1E293B',
+                              color: '#FFFFFF',
+                              border: '1px solid rgba(255,255,255,0.15)',
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              fontSize: '10.5px',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {copiedLink === row.dev_invite_link ? (<><Check size={11} /> Copied</>) : (<><Copy size={11} /> Copy</>)}
+                          </button>
                         </li>
                       ))}
                     </ul>
