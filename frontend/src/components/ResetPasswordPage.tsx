@@ -30,7 +30,7 @@ export const ResetPasswordPage: React.FC = () => {
     <div style={{ minHeight: '100vh', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' }}>
       <div style={{ padding: '40px', width: '100%', maxWidth: '440px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px' }}>
-          <div style={{ background: '#18191C', color: '#FDF8E2', width: '38px', height: '38px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '18px' }}>⚡</div>
+          <img src="/product-logo.png" alt="HackEval Logo" style={{ width: '38px', height: '38px', borderRadius: '10px', objectFit: 'contain' }} />
           <span style={{ fontSize: '18px', fontWeight: 800 }}>HackEval</span>
         </div>
 

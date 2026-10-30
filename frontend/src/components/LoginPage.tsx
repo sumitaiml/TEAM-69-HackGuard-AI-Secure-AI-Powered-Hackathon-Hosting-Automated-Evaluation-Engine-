@@ -163,21 +163,19 @@ export const LoginPage: React.FC = () => {
           <div>
             {/* Top Brand Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '40px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{
-                  background: '#FDF8E2',
-                  color: '#18191C',
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: '800',
-                  fontSize: '18px'
-                }}>
-                  ⚡
-                </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <img
+                  src="/product-logo.png"
+                  alt="HackEval Logo"
+                  style={{
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '10px',
+                    objectFit: 'contain',
+                    boxShadow: '0 4px 14px rgba(0,0,0,0.3)',
+                    border: '1px solid rgba(255,255,255,0.12)'
+                  }}
+                />
                 <span style={{ fontSize: '18px', fontWeight: '800' }}>HackEval</span>
               </div>
               <span className="pill-badge" style={{ background: 'rgba(255,255,255,0.1)', color: '#9CA3AF' }}>v1.0 Live</span>
@@ -191,18 +189,59 @@ export const LoginPage: React.FC = () => {
               Secure code execution, AST plagiarism detection, static security analysis, and dynamic leaderboards in one unified hub.
             </p>
 
-            {/* Two Mini Preview Metric Cards */}
+            {/* Two AI Engine Cards: Google Gemini & Groq */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div style={{ background: '#F0EBF9', padding: '16px', borderRadius: '16px', color: '#18191C' }}>
-                <div style={{ fontSize: '11px', fontWeight: '700', color: '#8B5CF6', textTransform: 'uppercase' }}>AI Score</div>
-                <div style={{ fontSize: '20px', fontWeight: '800', margin: '4px 0' }}>88.5 / 100</div>
-                <div style={{ fontSize: '11px', color: '#10B981', fontWeight: '700' }}>+2.4% Yield</div>
+              <div style={{
+                background: '#FFFFFF',
+                padding: '16px',
+                borderRadius: '16px',
+                color: '#18191C',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                boxShadow: '0 4px 14px rgba(0,0,0,0.15)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '10px', fontWeight: '800', color: '#4F46E5', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Multimodal LLM
+                  </span>
+                  <span style={{ fontSize: '10px', color: '#10B981', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    ● Active
+                  </span>
+                </div>
+                <div style={{ margin: '10px 0 6px 0', height: '32px', display: 'flex', alignItems: 'center' }}>
+                  <img src="/gemini-logo.png" alt="Google Gemini" style={{ maxHeight: '28px', maxWidth: '100%', objectFit: 'contain' }} />
+                </div>
+                <div style={{ fontSize: '11px', color: '#6B7280', fontWeight: '600' }}>
+                  Multimodal Scoring Engine
+                </div>
               </div>
 
-              <div style={{ background: '#E6F7F0', padding: '16px', borderRadius: '16px', color: '#18191C' }}>
-                <div style={{ fontSize: '11px', fontWeight: '700', color: '#10B981', textTransform: 'uppercase' }}>Plagiarism</div>
-                <div style={{ fontSize: '20px', fontWeight: '800', margin: '4px 0' }}>0.2% Low</div>
-                <div style={{ fontSize: '11px', color: '#10B981', fontWeight: '700' }}>Passed AST</div>
+              <div style={{
+                background: '#0D0E11',
+                padding: '16px',
+                borderRadius: '16px',
+                color: '#FFFFFF',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                border: '1px solid rgba(255,255,255,0.14)',
+                boxShadow: '0 4px 14px rgba(0,0,0,0.3)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '10px', fontWeight: '800', color: '#F97316', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Ultra-Fast LPU
+                  </span>
+                  <span style={{ fontSize: '10px', color: '#10B981', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    ● Active
+                  </span>
+                </div>
+                <div style={{ margin: '10px 0 6px 0', height: '32px', display: 'flex', alignItems: 'center' }}>
+                  <img src="/groq-logo.png" alt="Groq" style={{ maxHeight: '28px', maxWidth: '100%', objectFit: 'contain' }} />
+                </div>
+                <div style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: '600' }}>
+                  Code Verification Agent
+                </div>
               </div>
             </div>
           </div>

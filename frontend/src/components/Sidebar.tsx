@@ -34,20 +34,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentRole, activeTab, setAct
       <div>
         {/* Brand Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '40px' }}>
-          <div style={{
-            background: '#FDF8E2',
-            color: '#18191C',
-            width: '44px',
-            height: '44px',
-            borderRadius: '14px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: '800',
-            fontSize: '20px'
-          }}>
-            ⚡
-          </div>
+          <img
+            src="/product-logo.png"
+            alt="HackEval Logo"
+            style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '12px',
+              objectFit: 'contain',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+            }}
+          />
           <div>
             <h2 style={{ fontSize: '18px', fontWeight: '800', lineHeight: '1.2' }}>HackEval</h2>
             <span style={{ fontSize: '11px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
