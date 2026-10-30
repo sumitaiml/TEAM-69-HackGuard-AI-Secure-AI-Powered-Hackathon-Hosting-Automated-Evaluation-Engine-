@@ -48,7 +48,7 @@ def _send_via_resend(to_email: str, subject: str, text_body: str, html_body: Opt
         headers={
             "Authorization": f"Bearer {settings.RESEND_API_KEY}",
             "Content-Type": "application/json",
-            "User-Agent": "HackGuard-Evaluation-Engine/1.0",
+            "User-Agent": "resend-python/2.0.0",
         },
         method="POST",
     )
