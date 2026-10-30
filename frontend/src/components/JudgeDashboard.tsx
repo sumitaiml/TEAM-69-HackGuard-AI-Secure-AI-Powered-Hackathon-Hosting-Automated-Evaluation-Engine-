@@ -121,10 +121,38 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
           }}
         />
         <div className="tabs-header">
-          <button className={`tab-btn ${activeReportTab === 'ai' ? 'active' : ''}`} onClick={() => setActiveReportTab('ai')}>🤖 AI Summary</button>
-          <button className={`tab-btn ${activeReportTab === 'static' ? 'active' : ''}`} onClick={() => setActiveReportTab('static')}>🛡️ Security & Static Code</button>
-          <button className={`tab-btn ${activeReportTab === 'docker' ? 'active' : ''}`} onClick={() => setActiveReportTab('docker')}>🐳 Docker Sandbox Logs</button>
-          <button className={`tab-btn ${activeReportTab === 'video' ? 'active' : ''}`} onClick={() => setActiveReportTab('video')}>🎥 Video Transcript (Whisper)</button>
+          <button
+            className={`tab-btn ${activeReportTab === 'ai' ? 'active' : ''}`}
+            onClick={() => setActiveReportTab('ai')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+          >
+            <img src="/product-logo.png" alt="HackGuard" style={{ width: '16px', height: '16px', borderRadius: '4px', objectFit: 'contain' }} />
+            <span>AI Summary</span>
+          </button>
+          <button
+            className={`tab-btn ${activeReportTab === 'static' ? 'active' : ''}`}
+            onClick={() => setActiveReportTab('static')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+          >
+            <img src="/product-logo.png" alt="HackGuard" style={{ width: '16px', height: '16px', borderRadius: '4px', objectFit: 'contain' }} />
+            <span>Security & Static Code</span>
+          </button>
+          <button
+            className={`tab-btn ${activeReportTab === 'docker' ? 'active' : ''}`}
+            onClick={() => setActiveReportTab('docker')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+          >
+            <img src="/product-logo.png" alt="HackGuard" style={{ width: '16px', height: '16px', borderRadius: '4px', objectFit: 'contain' }} />
+            <span>Docker Sandbox Logs</span>
+          </button>
+          <button
+            className={`tab-btn ${activeReportTab === 'video' ? 'active' : ''}`}
+            onClick={() => setActiveReportTab('video')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+          >
+            <img src="/product-logo.png" alt="HackGuard" style={{ width: '16px', height: '16px', borderRadius: '4px', objectFit: 'contain' }} />
+            <span>Video Transcript (Whisper)</span>
+          </button>
         </div>
         <div key={activeReportTab} className="animate-fade-in">{renderTabContent()}</div>
 
@@ -314,10 +342,38 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
             }}
           />
           <div className="tabs-header">
-            <button className={`tab-btn ${activeReportTab === 'ai' ? 'active' : ''}`} onClick={() => setActiveReportTab('ai')}>🤖 AI Summary</button>
-            <button className={`tab-btn ${activeReportTab === 'static' ? 'active' : ''}`} onClick={() => setActiveReportTab('static')}>🛡️ Security & Static Code</button>
-            <button className={`tab-btn ${activeReportTab === 'docker' ? 'active' : ''}`} onClick={() => setActiveReportTab('docker')}>🐳 Docker Sandbox Logs</button>
-            <button className={`tab-btn ${activeReportTab === 'video' ? 'active' : ''}`} onClick={() => setActiveReportTab('video')}>🎥 Video Transcript (Whisper)</button>
+            <button
+              className={`tab-btn ${activeReportTab === 'ai' ? 'active' : ''}`}
+              onClick={() => setActiveReportTab('ai')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+            >
+              <img src="/product-logo.png" alt="HackGuard" style={{ width: '16px', height: '16px', borderRadius: '4px', objectFit: 'contain' }} />
+              <span>AI Summary</span>
+            </button>
+            <button
+              className={`tab-btn ${activeReportTab === 'static' ? 'active' : ''}`}
+              onClick={() => setActiveReportTab('static')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+            >
+              <img src="/product-logo.png" alt="HackGuard" style={{ width: '16px', height: '16px', borderRadius: '4px', objectFit: 'contain' }} />
+              <span>Security & Static Code</span>
+            </button>
+            <button
+              className={`tab-btn ${activeReportTab === 'docker' ? 'active' : ''}`}
+              onClick={() => setActiveReportTab('docker')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+            >
+              <img src="/product-logo.png" alt="HackGuard" style={{ width: '16px', height: '16px', borderRadius: '4px', objectFit: 'contain' }} />
+              <span>Docker Sandbox Logs</span>
+            </button>
+            <button
+              className={`tab-btn ${activeReportTab === 'video' ? 'active' : ''}`}
+              onClick={() => setActiveReportTab('video')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+            >
+              <img src="/product-logo.png" alt="HackGuard" style={{ width: '16px', height: '16px', borderRadius: '4px', objectFit: 'contain' }} />
+              <span>Video Transcript (Whisper)</span>
+            </button>
           </div>
           <div key={activeReportTab} className="animate-fade-in">{renderTabContent()}</div>
         </div>
