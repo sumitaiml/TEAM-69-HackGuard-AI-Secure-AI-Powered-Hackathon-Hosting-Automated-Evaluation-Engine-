@@ -69,6 +69,7 @@ Teams must provide a GitHub repository, live production URL, 3-min demo video, a
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [weights, setWeights] = useState<RubricWeights | null>(null);
   const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteSuccessEmail, setInviteSuccessEmail] = useState<string | null>(null);
   const [devInviteLink, setDevInviteLink] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
   const [csvResult, setCsvResult] = useState<JudgeInviteCsvResult | null>(null);
@@ -113,8 +114,15 @@ Teams must provide a GitHub repository, live production URL, 3-min demo video, a
 
   const inviteJudge = useAsyncAction(async () => {
     if (!inviteEmail.trim() || !activeHackathon) return;
-    const res = await api.post<{ dev_invite_link?: string }>(`/api/hackathons/${activeHackathon.id}/invite-judge`, { email: inviteEmail });
-    setDevInviteLink(res.dev_invite_link || null);
+    const target = inviteEmail.trim();
+    const res = await api.post<{ dev_invite_link?: string }>(`/api/hackathons/${activeHackathon.id}/invite-judge`, { email: target });
+    if (res.dev_invite_link) {
+      setDevInviteLink(res.dev_invite_link);
+      setInviteSuccessEmail(null);
+    } else {
+      setDevInviteLink(null);
+      setInviteSuccessEmail(target);
+    }
     setInviteEmail('');
   });
 
@@ -587,11 +595,19 @@ Teams must provide a GitHub repository, live production URL, 3-min demo video, a
               </button>
             </div>
             {inviteJudge.error && <p style={{ color: '#F87171', fontSize: '12px' }}>{inviteJudge.error}</p>}
+            {inviteSuccessEmail && (
+              <div style={{ marginTop: '12px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '10px', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Check size={16} color="#10B981" />
+                <span style={{ fontSize: '12px', color: '#6EE7B7' }}>
+                  Invitation email sent to <strong>{inviteSuccessEmail}</strong> via Resend!
+                </span>
+              </div>
+            )}
             {devInviteLink && (
               <div style={{ marginTop: '14px', background: 'rgba(37, 99, 235, 0.08)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '12px', padding: '12px 14px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                   <span style={{ fontSize: '11px', fontWeight: '800', color: '#93C5FD', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Judge Invitation Link
+                    Judge Direct Activation Link
                   </span>
                   <button
                     type="button"
@@ -618,7 +634,7 @@ Teams must provide a GitHub repository, live production URL, 3-min demo video, a
                   {devInviteLink}
                 </p>
                 <p style={{ fontSize: '10.5px', color: '#94A3B8', margin: 0 }}>
-                  💡 Share this activation link directly with the judge to grant portal access.
+                  💡 In Resend sandbox mode, emails deliver to your registered account. For other judge emails, copy and share this link directly with the judge.
                 </p>
               </div>
             )}
