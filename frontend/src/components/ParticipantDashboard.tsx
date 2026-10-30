@@ -1,6 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MetricCard } from './MetricCard';
-import { GitBranch, ShieldCheck, Trophy, Rocket, Upload, UserPlus } from 'lucide-react';
+import {
+  GitBranch, ShieldCheck, Trophy, Rocket, Upload, UserPlus,
+  UploadCloud, FolderArchive, FileText, Video, Globe, Layers,
+  X, CheckCircle2, FileCode, Trash2
+} from 'lucide-react';
 
 import type { HackathonItem, Team, Submission, EvaluationReport, LeaderboardEntry } from '../lib/types';
 import { api } from '../lib/apiClient';
@@ -517,6 +521,131 @@ interface SubmitModalProps {
   onEvaluationTriggered: (taskId: string) => void;
 }
 
+interface FileDropTileProps {
+  label: string;
+  subtitle: string;
+  accept: string;
+  file: File | null;
+  onChange: (file: File | null) => void;
+  icon: React.ReactNode;
+  accentBg: string;
+  accentColor: string;
+}
+
+const FileDropTile: React.FC<FileDropTileProps> = ({
+  label, subtitle, accept, file, onChange, icon, accentBg, accentColor,
+}) => {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  return (
+    <div
+      className={`submission-upload-card ${file ? 'file-active' : ''}`}
+      onClick={() => inputRef.current?.click()}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        accept={accept}
+        style={{ display: 'none' }}
+        onChange={(e) => onChange(e.target.files?.[0] || null)}
+      />
+
+      {file ? (
+        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#059669', marginBottom: '4px' }}>
+            <CheckCircle2 size={15} />
+            <span style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Attached</span>
+          </div>
+          <span
+            style={{
+              fontSize: '12px',
+              fontWeight: '700',
+              color: '#0F172A',
+              maxWidth: '180px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              display: 'block',
+              marginBottom: '2px',
+            }}
+            title={file.name}
+          >
+            {file.name}
+          </span>
+          <span style={{ fontSize: '11px', color: '#64748B', fontWeight: '600', marginBottom: '8px' }}>
+            {formatFileSize(file.size)}
+          </span>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange(null);
+              if (inputRef.current) inputRef.current.value = '';
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontSize: '11px',
+              fontWeight: '700',
+              color: '#EF4444',
+              background: '#FEE2E2',
+              border: 'none',
+              padding: '3px 9px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s',
+            }}
+          >
+            <Trash2 size={11} /> Remove
+          </button>
+        </div>
+      ) : (
+        <>
+          <div
+            style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '10px',
+              background: accentBg,
+              color: accentColor,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '8px',
+            }}
+          >
+            {icon}
+          </div>
+          <span style={{ fontSize: '12px', fontWeight: '700', color: '#1E293B', marginBottom: '2px' }}>
+            {label}
+          </span>
+          <span style={{ fontSize: '10.5px', color: '#64748B', marginBottom: '8px' }}>
+            {subtitle}
+          </span>
+          <span
+            style={{
+              fontSize: '11px',
+              fontWeight: '700',
+              color: '#2563EB',
+              background: '#EFF6FF',
+              padding: '3px 10px',
+              borderRadius: '99px',
+            }}
+          >
+            Browse File
+          </span>
+        </>
+      )}
+    </div>
+  );
+};
+
 const SubmitModal: React.FC<SubmitModalProps> = ({ hackathonId, teamId, onClose, onSubmitted, onEvaluationTriggered }) => {
   const [githubUrl, setGithubUrl] = useState('');
   const [techStack, setTechStack] = useState('');
@@ -527,6 +656,7 @@ const SubmitModal: React.FC<SubmitModalProps> = ({ hackathonId, teamId, onClose,
   const [pptFile, setPptFile] = useState<File | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [runEvalAfter, setRunEvalAfter] = useState(true);
+  const readmeInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleReadmeFileSelect = (file: File | null) => {
     setReadmeFile(file);
@@ -540,6 +670,11 @@ const SubmitModal: React.FC<SubmitModalProps> = ({ hackathonId, teamId, onClose,
       };
       reader.readAsText(file);
     }
+  };
+
+  const clearReadmeFile = () => {
+    setReadmeFile(null);
+    if (readmeInputRef.current) readmeInputRef.current.value = '';
   };
 
   const submitAction = useAsyncAction(async () => {
@@ -566,106 +701,343 @@ const SubmitModal: React.FC<SubmitModalProps> = ({ hackathonId, teamId, onClose,
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '8px' }}>Project Asset Submission</h3>
-        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '24px' }}>
-          Upload your project README description, GitHub repository, code ZIP, demo video, and PPT presentation.
-        </p>
-
-        <form onSubmit={(e) => { e.preventDefault(); submitAction.run(); }}>
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>GitHub Repository URL</label>
-            <input type="text" className="search-input" style={{ width: '100%' }} value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} />
+      <div className="submission-modal-card" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="submission-modal-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div
+              style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, #1E293B 0%, #0F172A 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(15, 23, 42, 0.15)',
+              }}
+            >
+              <UploadCloud size={22} color="#60A5FA" />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#0F172A', margin: 0, letterSpacing: '-0.3px' }}>
+                Project Asset Submission
+              </h3>
+              <p style={{ fontSize: '12.5px', color: '#64748B', margin: '2px 0 0 0' }}>
+                Upload code repository, documentation, and media deliverables for automated AI grading.
+              </p>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            style={{
+              background: '#F1F5F9',
+              border: 'none',
+              borderRadius: '50%',
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: '#64748B',
+              transition: 'background-color 0.2s',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#E2E8F0')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#F1F5F9')}
+          >
+            <X size={16} />
+          </button>
+        </div>
 
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>Tech Stack Tags</label>
-            <input type="text" className="search-input" style={{ width: '100%' }} value={techStack} onChange={(e) => setTechStack(e.target.value)} placeholder="React, FastAPI, Docker" />
-          </div>
+        {/* Scrollable Form Body */}
+        <form
+          id="project-submission-form"
+          onSubmit={(e) => { e.preventDefault(); submitAction.run(); }}
+          style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}
+        >
+          <div className="submission-modal-body">
+            {/* Section 1: Links & Stack */}
+            <div>
+              <div className="submission-section-badge">
+                <GitBranch size={13} color="#2563EB" />
+                <span>1. Repository & Deployment</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                    GitHub Repository URL
+                  </label>
+                  <div className="submission-input-wrapper">
+                    <GitBranch className="input-icon" size={16} />
+                    <input
+                      type="url"
+                      className="submission-text-input"
+                      value={githubUrl}
+                      onChange={(e) => setGithubUrl(e.target.value)}
+                      placeholder="https://github.com/org/repo"
+                    />
+                  </div>
+                </div>
 
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>Live Deployment URL</label>
-            <input type="text" className="search-input" style={{ width: '100%' }} value={liveUrl} onChange={(e) => setLiveUrl(e.target.value)} />
-          </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                    Live Deployment URL
+                  </label>
+                  <div className="submission-input-wrapper">
+                    <Globe className="input-icon" size={16} />
+                    <input
+                      type="url"
+                      className="submission-text-input"
+                      value={liveUrl}
+                      onChange={(e) => setLiveUrl(e.target.value)}
+                      placeholder="https://my-project.vercel.app"
+                    />
+                  </div>
+                </div>
+              </div>
 
-          <div style={{ marginBottom: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <label style={{ fontSize: '13px', fontWeight: '700' }}>
-                README / Project Description
-              </label>
-              <label
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                  Tech Stack & Frameworks
+                </label>
+                <div className="submission-input-wrapper">
+                  <Layers className="input-icon" size={16} />
+                  <input
+                    type="text"
+                    className="submission-text-input"
+                    value={techStack}
+                    onChange={(e) => setTechStack(e.target.value)}
+                    placeholder="React, TypeScript, FastAPI, PostgreSQL, Docker, Gemini LLM"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Section 2: README Documentation */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div className="submission-section-badge" style={{ margin: 0 }}>
+                  <FileCode size={13} color="#2563EB" />
+                  <span>2. Project README & Documentation</span>
+                </div>
+                <label
+                  style={{
+                    fontSize: '11.5px',
+                    fontWeight: '700',
+                    color: '#2563EB',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    background: '#EFF6FF',
+                    border: '1px solid #BFDBFE',
+                    padding: '4px 12px',
+                    borderRadius: '99px',
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#DBEAFE')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#EFF6FF')}
+                >
+                  <Upload size={12} />
+                  <span>Upload README (.md / .txt)</span>
+                  <input
+                    ref={readmeInputRef}
+                    type="file"
+                    accept=".md,.markdown,.txt,.rst"
+                    onChange={(e) => handleReadmeFileSelect(e.target.files?.[0] || null)}
+                    style={{ display: 'none' }}
+                  />
+                </label>
+              </div>
+
+              {readmeFile && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    background: '#ECFDF5',
+                    border: '1px solid #A7F3D0',
+                    borderRadius: '10px',
+                    padding: '6px 12px',
+                    marginBottom: '8px',
+                    fontSize: '12px',
+                    color: '#065F46',
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700' }}>
+                    <CheckCircle2 size={14} color="#10B981" />
+                    Attached: {readmeFile.name} ({(readmeFile.size / 1024).toFixed(1)} KB)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={clearReadmeFile}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#059669',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      fontSize: '11px',
+                    }}
+                  >
+                    Clear
+                  </button>
+                </div>
+              )}
+
+              <textarea
+                className="submission-text-input"
                 style={{
+                  width: '100%',
+                  height: '92px',
+                  borderRadius: '12px',
+                  fontFamily: 'monospace',
                   fontSize: '12px',
-                  fontWeight: '700',
-                  color: '#2B7FFF',
-                  cursor: 'pointer',
+                  lineHeight: '1.5',
+                  padding: '10px 12px',
+                  resize: 'vertical',
+                }}
+                value={readmeText}
+                onChange={(e) => setReadmeText(e.target.value)}
+                placeholder={"# Project Title\n\n## Overview\nDescribe system architecture, API endpoints, setup steps, and key deliverables...\n\n(Or click 'Upload README' to auto-populate from file)"}
+              />
+            </div>
+
+            {/* Section 3: Deliverables Grid */}
+            <div>
+              <div className="submission-section-badge">
+                <FolderArchive size={13} color="#2563EB" />
+                <span>3. Project Deliverables & Media Assets</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                <FileDropTile
+                  label="Source ZIP Archive"
+                  subtitle=".zip archive up to 100MB"
+                  accept=".zip"
+                  file={zipFile}
+                  onChange={setZipFile}
+                  icon={<FolderArchive size={18} />}
+                  accentBg="#EFF6FF"
+                  accentColor="#2563EB"
+                />
+                <FileDropTile
+                  label="Pitch Presentation"
+                  subtitle="PowerPoint (.pptx) deck"
+                  accept=".pptx"
+                  file={pptFile}
+                  onChange={setPptFile}
+                  icon={<FileText size={18} />}
+                  accentBg="#FEF3C7"
+                  accentColor="#D97706"
+                />
+                <FileDropTile
+                  label="Demo Video"
+                  subtitle="MP4, MOV, WebM (3-5 min)"
+                  accept="video/*"
+                  file={videoFile}
+                  onChange={setVideoFile}
+                  icon={<Video size={18} />}
+                  accentBg="#F3E8FF"
+                  accentColor="#7C3AED"
+                />
+              </div>
+            </div>
+
+            {submitAction.error && (
+              <div
+                style={{
+                  padding: '10px 14px',
+                  background: '#FEF2F2',
+                  border: '1px solid #FCA5A5',
+                  borderRadius: '10px',
+                  color: '#B91C1C',
+                  fontSize: '12.5px',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '4px',
-                  background: '#E8F2FF',
-                  padding: '4px 10px',
-                  borderRadius: '8px',
+                  gap: '8px',
                 }}
               >
-                <span>📁 Upload README File (.md / .txt)</span>
-                <input
-                  type="file"
-                  accept=".md,.markdown,.txt,.rst"
-                  onChange={(e) => handleReadmeFileSelect(e.target.files?.[0] || null)}
-                  style={{ display: 'none' }}
-                />
-              </label>
-            </div>
-            {readmeFile && (
-              <div style={{ fontSize: '12px', color: '#10B981', marginBottom: '6px', fontWeight: '700' }}>
-                ✓ Loaded from file: {readmeFile.name} ({(readmeFile.size / 1024).toFixed(1)} KB)
+                <span>⚠️ {submitAction.error}</span>
               </div>
             )}
-            <textarea
-              className="search-input"
-              style={{ width: '100%', height: '90px', borderRadius: '12px', fontFamily: 'monospace', fontSize: '12px' }}
-              value={readmeText}
-              onChange={(e) => setReadmeText(e.target.value)}
-              placeholder="# Project Title&#10;&#10;## Overview&#10;Describe your architecture, features, and instructions (or click 'Upload README File' above to attach your README.md)..."
-            />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-            <FileField label="ZIP Archive" accept=".zip" file={zipFile} onChange={setZipFile} />
-            <FileField label="PPT (.pptx)" accept=".pptx" file={pptFile} onChange={setPptFile} />
-            <FileField label="Demo Video (3-5 min)" accept="video/*" file={videoFile} onChange={setVideoFile} />
-          </div>
+          {/* Sticky Footer */}
+          <div className="submission-modal-footer">
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', margin: 0 }}>
+              <input
+                type="checkbox"
+                checked={runEvalAfter}
+                onChange={(e) => setRunEvalAfter(e.target.checked)}
+                style={{ width: '16px', height: '16px', accentColor: '#2563EB', cursor: 'pointer' }}
+              />
+              <div>
+                <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#1E293B', display: 'block' }}>
+                  Run AI evaluation immediately on submit
+                </span>
+                <span style={{ fontSize: '11px', color: '#64748B' }}>
+                  Executes AST plagiarism checks, security audit & automated scoring
+                </span>
+              </div>
+            </label>
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', marginBottom: '20px', cursor: 'pointer' }}>
-            <input type="checkbox" checked={runEvalAfter} onChange={(e) => setRunEvalAfter(e.target.checked)} />
-            Run AI evaluation immediately after submitting
-          </label>
-
-          {submitAction.error && <p style={{ color: '#EF4444', fontSize: '13px', marginBottom: '16px' }}>{submitAction.error}</p>}
-
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-            <button type="button" className="role-btn" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn-primary" disabled={submitAction.isLoading}>
-              {submitAction.isLoading ? 'Uploading…' : 'Confirm Submission'}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={onClose}
+                style={{
+                  padding: '9px 18px',
+                  borderRadius: '99px',
+                  border: '1.5px solid #CBD5E1',
+                  background: '#FFFFFF',
+                  color: '#475569',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#F1F5F9')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#FFFFFF')}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitAction.isLoading}
+                style={{
+                  padding: '9px 22px',
+                  borderRadius: '99px',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
+                  color: '#FFFFFF',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  cursor: submitAction.isLoading ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 14px rgba(37, 99, 235, 0.35)',
+                  transition: 'all 0.2s',
+                  opacity: submitAction.isLoading ? 0.75 : 1,
+                }}
+              >
+                {submitAction.isLoading ? (
+                  <span>Uploading Deliverables…</span>
+                ) : (
+                  <>
+                    <Rocket size={15} />
+                    <span>Confirm Submission</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </form>
       </div>
     </div>
   );
 };
-
-const FileField: React.FC<{ label: string; accept: string; file: File | null; onChange: (f: File | null) => void }> = ({ label, accept, file, onChange }) => (
-  <div>
-    <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>{label}</label>
-    <div style={{ border: '2px dashed #E5E7EB', padding: '12px', borderRadius: '12px', textAlign: 'center' }}>
-      <input
-        type="file"
-        accept={accept}
-        onChange={(e) => onChange(e.target.files?.[0] || null)}
-        style={{ fontSize: '11px', width: '100%' }}
-      />
-      {file && <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>{file.name}</p>}
-    </div>
-  </div>
-);
