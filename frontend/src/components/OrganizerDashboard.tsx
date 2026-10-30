@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MetricCard } from './MetricCard';
-import { Users, ShieldAlert, Sliders, Trophy, Download, Send, Plus, Calendar, UserPlus, Upload, Trash2 } from 'lucide-react';
+import {
+  Users, ShieldAlert, Sliders, Trophy, Download, Send, Plus,
+  Calendar, UserPlus, Upload, Trash2, X, Sparkles, CheckCircle2,
+  FileText, CalendarDays
+} from 'lucide-react';
 import type { HackathonItem, LeaderboardEntry, RubricWeights, JudgeInviteCsvResult } from '../lib/types';
 import { api } from '../lib/apiClient';
 import { useAsyncAction } from '../hooks/useAsyncAction';
@@ -40,6 +44,27 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
   const [newDesc, setNewDesc] = useState('');
   const [newStartDate, setNewStartDate] = useState('');
   const [newEndDate, setNewEndDate] = useState('');
+  const [isCreatingEvent, setIsCreatingEvent] = useState(false);
+
+  const getDurationDays = (start: string, end: string): number | null => {
+    if (!start || !end) return null;
+    const s = new Date(start);
+    const e = new Date(end);
+    const diffTime = e.getTime() - s.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  };
+
+  const fillSampleTemplate = () => {
+    setNewDesc(
+`# Event Theme & Tracks
+- Track 1: Generative AI & Autonomous Agents
+- Track 2: Developer Tooling & Cyber Defense
+- Track 3: Open Innovation & Web3
+
+## Submission Guidelines
+Teams must provide a GitHub repository, live production URL, 3-min demo video, and code ZIP. All submissions are automatically audited for code plagiarism and security vulnerabilities.`
+    );
+  };
 
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [weights, setWeights] = useState<RubricWeights | null>(null);
@@ -116,10 +141,17 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
-    await onCreateHackathon(newTitle, newDesc, newStartDate, newEndDate);
-    setShowCreateModal(false);
-    setNewTitle('');
-    setNewDesc('');
+    try {
+      setIsCreatingEvent(true);
+      await onCreateHackathon(newTitle, newDesc, newStartDate, newEndDate);
+      setShowCreateModal(false);
+      setNewTitle('');
+      setNewDesc('');
+      setNewStartDate('');
+      setNewEndDate('');
+    } finally {
+      setIsCreatingEvent(false);
+    }
   };
 
   const handleSliderChange = (param: (typeof RUBRIC_KEYS)[number], value: number) => {
@@ -612,37 +644,264 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
 
       {showCreateModal && (
         <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ fontSize: '22px', fontWeight: '800', marginBottom: '6px' }}>Create New Hackathon Event</h3>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '24px' }}>
-              Configure a new hackathon event with custom dates and evaluation rubrics.
-            </p>
-
-            <form onSubmit={handleFormSubmit}>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: '#374151', textTransform: 'uppercase', marginBottom: '6px' }}>Hackathon Title</label>
-                <input type="text" required placeholder="e.g. AI World Championship 2026" className="search-input" style={{ width: '100%' }} value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
-              </div>
-
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: '#374151', textTransform: 'uppercase', marginBottom: '6px' }}>Description</label>
-                <textarea placeholder="Event guidelines, rules, and track descriptions..." className="search-input" style={{ width: '100%', height: '70px', borderRadius: '12px' }} value={newDesc} onChange={(e) => setNewDesc(e.target.value)} />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+          <div className="create-hackathon-modal-card" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="submission-modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <img
+                  src="/product-logo.png"
+                  alt="HackGuard Logo"
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '12px',
+                    objectFit: 'contain',
+                    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.18)',
+                  }}
+                />
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: '#374151', textTransform: 'uppercase', marginBottom: '6px' }}>Start Date</label>
-                  <input type="date" required className="search-input" style={{ width: '100%' }} value={newStartDate} onChange={(e) => setNewStartDate(e.target.value)} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#0F172A', margin: 0, letterSpacing: '-0.3px' }}>
+                      Create New Hackathon Event
+                    </h3>
+                    <span className="pill-badge" style={{ background: '#EFF6FF', color: '#2563EB', fontSize: '11px', padding: '2px 8px' }}>
+                      HackGuard Engine
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '12.5px', color: '#64748B', margin: '2px 0 0 0' }}>
+                    Configure event timeline, challenge tracks, and automated evaluation engine.
+                  </p>
                 </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                aria-label="Close"
+                style={{
+                  background: '#F1F5F9',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: '#64748B',
+                  transition: 'background-color 0.2s',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#E2E8F0')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#F1F5F9')}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Scrollable Form Body */}
+            <form
+              onSubmit={handleFormSubmit}
+              style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}
+            >
+              <div className="submission-modal-body">
+                {/* Section 1: Event Identity */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '800', color: '#374151', textTransform: 'uppercase', marginBottom: '6px' }}>End Date</label>
-                  <input type="date" required className="search-input" style={{ width: '100%' }} value={newEndDate} onChange={(e) => setNewEndDate(e.target.value)} />
+                  <div className="submission-section-badge">
+                    <Trophy size={13} color="#2563EB" />
+                    <span>1. Event Identity & Theme</span>
+                  </div>
+
+                  <div style={{ marginBottom: '14px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                      Hackathon Title <span style={{ color: '#EF4444' }}>*</span>
+                    </label>
+                    <div className="submission-input-wrapper">
+                      <Trophy className="input-icon" size={16} />
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. AI World Championship 2026"
+                        className="submission-text-input"
+                        value={newTitle}
+                        onChange={(e) => setNewTitle(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: '700', color: '#334155' }}>
+                        Description & Track Guidelines
+                      </label>
+                      <button
+                        type="button"
+                        onClick={fillSampleTemplate}
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: '700',
+                          color: '#2563EB',
+                          background: '#EFF6FF',
+                          border: '1px solid #BFDBFE',
+                          padding: '2px 10px',
+                          borderRadius: '99px',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <FileText size={11} /> Use Template
+                      </button>
+                    </div>
+                    <textarea
+                      placeholder="Event guidelines, challenge rules, theme tracks, and judging criteria..."
+                      className="submission-text-input"
+                      style={{
+                        width: '100%',
+                        height: '85px',
+                        borderRadius: '12px',
+                        lineHeight: '1.5',
+                        padding: '10px 12px',
+                        resize: 'vertical',
+                      }}
+                      value={newDesc}
+                      onChange={(e) => setNewDesc(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Section 2: Timeline */}
+                <div>
+                  <div className="submission-section-badge">
+                    <CalendarDays size={13} color="#2563EB" />
+                    <span>2. Schedule & Event Window</span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '10px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                        Start Date <span style={{ color: '#EF4444' }}>*</span>
+                      </label>
+                      <div className="submission-input-wrapper">
+                        <Calendar className="input-icon" size={16} />
+                        <input
+                          type="date"
+                          required
+                          className="submission-text-input"
+                          value={newStartDate}
+                          onChange={(e) => setNewStartDate(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                        End Date <span style={{ color: '#EF4444' }}>*</span>
+                      </label>
+                      <div className="submission-input-wrapper">
+                        <Calendar className="input-icon" size={16} />
+                        <input
+                          type="date"
+                          required
+                          className="submission-text-input"
+                          value={newEndDate}
+                          onChange={(e) => setNewEndDate(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {newStartDate && newEndDate && (() => {
+                    const days = getDurationDays(newStartDate, newEndDate);
+                    if (days === null) return null;
+                    if (days < 0) {
+                      return (
+                        <div style={{ fontSize: '11.5px', color: '#DC2626', background: '#FEF2F2', padding: '6px 12px', borderRadius: '8px', fontWeight: '600' }}>
+                          ⚠️ End date cannot precede start date.
+                        </div>
+                      );
+                    }
+                    return (
+                      <div style={{ fontSize: '11.5px', color: '#1D4ED8', background: '#EFF6FF', border: '1px solid #DBEAFE', padding: '6px 12px', borderRadius: '8px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Sparkles size={13} color="#2563EB" />
+                        <span>Event Window: <strong>{days} {days === 1 ? 'day' : 'days'}</strong> (Submissions open during this period)</span>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Section 3: Automated Platform Capabilities */}
+                <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '14px 16px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '0.06em', textTransform: 'uppercase', color: '#64748B', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <img src="/product-logo.png" alt="HackGuard" style={{ width: '16px', height: '16px', borderRadius: '4px', objectFit: 'contain' }} />
+                    <span>HackGuard Automated Capabilities Active</span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px', color: '#334155' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <CheckCircle2 size={13} color="#10B981" /> AST Code Plagiarism Engine
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <CheckCircle2 size={13} color="#10B981" /> Gemini + Groq AI Scoring
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <CheckCircle2 size={13} color="#10B981" /> Docker Sandbox Execution
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <CheckCircle2 size={13} color="#10B981" /> Real-Time Dynamic Leaderboard
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                <button type="button" className="role-btn" onClick={() => setShowCreateModal(false)}>Cancel</button>
-                <button type="submit" className="btn-primary">Create Event</button>
+              {/* Sticky Footer */}
+              <div className="submission-modal-footer">
+                <span style={{ fontSize: '11px', color: '#64748B', maxWidth: '340px' }}>
+                  Default rubric weights (100 pts) are automatically initialized and can be edited anytime in Rubric Configurator.
+                </span>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateModal(false)}
+                    style={{
+                      padding: '9px 18px',
+                      borderRadius: '99px',
+                      border: '1.5px solid #CBD5E1',
+                      background: '#FFFFFF',
+                      color: '#475569',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#F1F5F9')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#FFFFFF')}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isCreatingEvent}
+                    style={{
+                      padding: '9px 22px',
+                      borderRadius: '99px',
+                      border: 'none',
+                      background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
+                      color: '#FFFFFF',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      cursor: isCreatingEvent ? 'not-allowed' : 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      boxShadow: '0 4px 14px rgba(37, 99, 235, 0.35)',
+                      transition: 'all 0.2s',
+                      opacity: isCreatingEvent ? 0.75 : 1,
+                    }}
+                  >
+                    <Plus size={15} />
+                    <span>{isCreatingEvent ? 'Creating…' : 'Create Event'}</span>
+                  </button>
+                </div>
               </div>
             </form>
           </div>

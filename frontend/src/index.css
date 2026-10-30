@@ -621,7 +621,8 @@ nav button:active {
 }
 
 /* Expert Project Asset Submission Modal */
-.submission-modal-card {
+.submission-modal-card,
+.create-hackathon-modal-card {
   background: #FFFFFF;
   border-radius: 24px;
   width: 780px;
@@ -632,6 +633,10 @@ nav button:active {
   box-shadow: 0 30px 70px -15px rgba(15, 23, 42, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.06);
   animation: popIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   overflow: hidden;
+}
+
+.create-hackathon-modal-card {
+  width: 680px;
 }
 
 .submission-modal-header {
