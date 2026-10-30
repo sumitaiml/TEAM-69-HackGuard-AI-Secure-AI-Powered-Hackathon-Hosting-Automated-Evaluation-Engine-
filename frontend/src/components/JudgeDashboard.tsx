@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { MetricCard } from './MetricCard';
-import { FileText, ShieldCheck, Sliders, CheckCircle, Video, Calendar } from 'lucide-react';
+import { FileText, ShieldCheck, Sliders, CheckCircle, Video, Calendar, Trash2 } from 'lucide-react';
 
 import type { HackathonItem, LeaderboardEntry, EvaluationReport, RubricWeights } from '../lib/types';
 import { api } from '../lib/apiClient';
@@ -12,6 +12,7 @@ interface JudgeDashboardProps {
   hackathons: HackathonItem[];
   selectedHackathonId: string;
   setSelectedHackathonId: (id: string) => void;
+  onDeleteHackathon?: (id: string) => Promise<void>;
 }
 
 const DEFAULT_WEIGHTS: RubricWeights = {
@@ -19,7 +20,7 @@ const DEFAULT_WEIGHTS: RubricWeights = {
 };
 
 export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
-  activeTab, setActiveTab, hackathons, selectedHackathonId, setSelectedHackathonId,
+  activeTab, setActiveTab, hackathons, selectedHackathonId, setSelectedHackathonId, onDeleteHackathon,
 }) => {
   const [activeReportTab, setActiveReportTab] = useState<'ai' | 'static' | 'docker' | 'video'>('ai');
   const [queue, setQueue] = useState<LeaderboardEntry[]>([]);
@@ -27,12 +28,37 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
   const [report, setReport] = useState<EvaluationReport | null>(null);
   const [reportError, setReportError] = useState<string | null>(null);
 
+  const [showDeleteHackModal, setShowDeleteHackModal] = useState(false);
+  const [submissionToDelete, setSubmissionToDelete] = useState<LeaderboardEntry | null>(null);
+
   const [overrideScores, setOverrideScores] = useState<RubricWeights>(DEFAULT_WEIGHTS);
   const [justification, setJustification] = useState('');
   const [comments, setComments] = useState('');
 
   const activeHackathon = hackathons.find((h) => h.id === selectedHackathonId) || null;
   const weightCaps = activeHackathon?.rubric_weights_json || DEFAULT_WEIGHTS;
+
+  const deleteHackathonAction = useAsyncAction(async () => {
+    if (!activeHackathon) return;
+    if (onDeleteHackathon) {
+      await onDeleteHackathon(activeHackathon.id);
+    } else {
+      await api.delete(`/api/hackathons/${activeHackathon.id}`);
+    }
+    setShowDeleteHackModal(false);
+  });
+
+  const deleteSubmissionAction = useAsyncAction(async () => {
+    if (!submissionToDelete) return;
+    await api.delete(`/api/submissions/${submissionToDelete.submission_id}`);
+    const deletedId = submissionToDelete.submission_id;
+    setSubmissionToDelete(null);
+    if (selectedSubmissionId === deletedId) {
+      setSelectedSubmissionId(null);
+      setReport(null);
+    }
+    loadQueue();
+  });
 
   const loadQueue = useCallback(() => {
     if (!selectedHackathonId) { setQueue([]); return; }
@@ -81,7 +107,19 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
   if (activeTab === 'report') {
     return (
       <div key={activeTab} className="card animate-fade-in">
-        <ReportHeader hackathons={hackathons} selectedHackathonId={selectedHackathonId} setSelectedHackathonId={setSelectedHackathonId} queue={queue} selectedSubmissionId={selectedSubmissionId} setSelectedSubmissionId={setSelectedSubmissionId} />
+        <ReportHeader
+          hackathons={hackathons}
+          selectedHackathonId={selectedHackathonId}
+          setSelectedHackathonId={setSelectedHackathonId}
+          queue={queue}
+          selectedSubmissionId={selectedSubmissionId}
+          setSelectedSubmissionId={setSelectedSubmissionId}
+          onTriggerDeleteHackathon={() => setShowDeleteHackModal(true)}
+          onTriggerDeleteSubmission={() => {
+            const currentSub = queue.find((q) => q.submission_id === selectedSubmissionId);
+            if (currentSub) setSubmissionToDelete(currentSub);
+          }}
+        />
         <div className="tabs-header">
           <button className={`tab-btn ${activeReportTab === 'ai' ? 'active' : ''}`} onClick={() => setActiveReportTab('ai')}>🤖 AI Summary</button>
           <button className={`tab-btn ${activeReportTab === 'static' ? 'active' : ''}`} onClick={() => setActiveReportTab('static')}>🛡️ Security & Static Code</button>
@@ -89,6 +127,80 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
           <button className={`tab-btn ${activeReportTab === 'video' ? 'active' : ''}`} onClick={() => setActiveReportTab('video')}>🎥 Video Transcript (Whisper)</button>
         </div>
         <div key={activeReportTab} className="animate-fade-in">{renderTabContent()}</div>
+
+        {/* Delete Hackathon Modal */}
+        {showDeleteHackModal && activeHackathon && (
+          <div className="modal-overlay" onClick={() => setShowDeleteHackModal(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <div style={{ background: '#FEE2E2', padding: '10px', borderRadius: '12px', color: '#EF4444' }}>
+                  <Trash2 size={24} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#991B1B' }}>Judge: Delete Hackathon Event?</h3>
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>This action is permanent and cannot be undone.</p>
+                </div>
+              </div>
+              <p style={{ fontSize: '14px', lineHeight: '1.6', color: '#374151', marginBottom: '20px' }}>
+                Are you sure you want to permanently delete <strong>{activeHackathon.title}</strong>? All registered submissions, AI evaluation reports, plagiarism fingerprints, and uploaded project assets will be removed.
+              </p>
+              {deleteHackathonAction.error && (
+                <p style={{ color: '#EF4444', fontSize: '13px', marginBottom: '16px' }}>{deleteHackathonAction.error}</p>
+              )}
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                <button type="button" className="role-btn" disabled={deleteHackathonAction.isLoading} onClick={() => setShowDeleteHackModal(false)}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  style={{ background: '#DC2626', borderColor: '#DC2626', color: '#FFFFFF' }}
+                  disabled={deleteHackathonAction.isLoading}
+                  onClick={() => deleteHackathonAction.run()}
+                >
+                  {deleteHackathonAction.isLoading ? 'Deleting…' : 'Yes, Delete Hackathon'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Submission Modal */}
+        {submissionToDelete && (
+          <div className="modal-overlay" onClick={() => setSubmissionToDelete(null)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <div style={{ background: '#FEE2E2', padding: '10px', borderRadius: '12px', color: '#EF4444' }}>
+                  <Trash2 size={24} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#991B1B' }}>Delete Submission?</h3>
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Permanent deletion of team submission and evaluation data.</p>
+                </div>
+              </div>
+              <p style={{ fontSize: '14px', lineHeight: '1.6', color: '#374151', marginBottom: '20px' }}>
+                Are you sure you want to delete the submission for team <strong>{submissionToDelete.team_name}</strong>? Its code files, reports, and fingerprints will be permanently deleted.
+              </p>
+              {deleteSubmissionAction.error && (
+                <p style={{ color: '#EF4444', fontSize: '13px', marginBottom: '16px' }}>{deleteSubmissionAction.error}</p>
+              )}
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                <button type="button" className="role-btn" disabled={deleteSubmissionAction.isLoading} onClick={() => setSubmissionToDelete(null)}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  style={{ background: '#DC2626', borderColor: '#DC2626', color: '#FFFFFF' }}
+                  disabled={deleteSubmissionAction.isLoading}
+                  onClick={() => deleteSubmissionAction.run()}
+                >
+                  {deleteSubmissionAction.isLoading ? 'Deleting…' : 'Yes, Delete Submission'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -187,7 +299,20 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
 
       <div className="dashboard-grid">
         <div className="card">
-          <ReportHeader hackathons={hackathons} selectedHackathonId={selectedHackathonId} setSelectedHackathonId={setSelectedHackathonId} queue={queue} selectedSubmissionId={selectedSubmissionId} setSelectedSubmissionId={setSelectedSubmissionId} compact />
+          <ReportHeader
+            hackathons={hackathons}
+            selectedHackathonId={selectedHackathonId}
+            setSelectedHackathonId={setSelectedHackathonId}
+            queue={queue}
+            selectedSubmissionId={selectedSubmissionId}
+            setSelectedSubmissionId={setSelectedSubmissionId}
+            compact
+            onTriggerDeleteHackathon={() => setShowDeleteHackModal(true)}
+            onTriggerDeleteSubmission={() => {
+              const currentSub = queue.find((q) => q.submission_id === selectedSubmissionId);
+              if (currentSub) setSubmissionToDelete(currentSub);
+            }}
+          />
           <div className="tabs-header">
             <button className={`tab-btn ${activeReportTab === 'ai' ? 'active' : ''}`} onClick={() => setActiveReportTab('ai')}>🤖 AI Summary</button>
             <button className={`tab-btn ${activeReportTab === 'static' ? 'active' : ''}`} onClick={() => setActiveReportTab('static')}>🛡️ Security & Static Code</button>
@@ -219,6 +344,154 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
           )}
         </div>
       </div>
+
+      {/* Submissions Evaluation & Management Queue */}
+      <div className="card" style={{ marginTop: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+          <div>
+            <h3 style={{ fontSize: '18px', fontWeight: '800' }}>Submissions Evaluation & Management Queue</h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+              Audit reports, review scores, or delete participant submissions for this event.
+            </p>
+          </div>
+          <span className="pill-badge blue">{queue.length} Submissions</span>
+        </div>
+
+        <div className="data-table-container">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Team Name</th>
+                <th>AI Score</th>
+                <th>Plagiarism Risk</th>
+                <th>Status</th>
+                <th style={{ textAlign: 'right' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {queue.length === 0 && (
+                <tr>
+                  <td colSpan={6} style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '24px' }}>
+                    No participant submissions in queue for this hackathon.
+                  </td>
+                </tr>
+              )}
+              {queue.map((item) => (
+                <tr key={item.submission_id} style={{ background: selectedSubmissionId === item.submission_id ? '#F0F7FF' : undefined }}>
+                  <td style={{ fontWeight: '800' }}>#{item.rank}</td>
+                  <td style={{ fontWeight: '700' }}>{item.team_name}</td>
+                  <td style={{ fontWeight: '800', fontSize: '15px' }}>{item.score}</td>
+                  <td>
+                    <span className={`pill-badge ${item.plagiarism_risk === 'CRITICAL' ? 'red' : item.plagiarism_risk === 'HIGH' ? 'amber' : 'green'}`}>
+                      {item.plagiarism_risk} ({item.plagiarism_percentage}%)
+                    </span>
+                  </td>
+                  <td><span className="pill-badge blue">{item.status}</span></td>
+                  <td style={{ textAlign: 'right' }}>
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                      <button
+                        type="button"
+                        className="role-btn"
+                        style={{ padding: '6px 12px', fontSize: '12px' }}
+                        onClick={() => {
+                          setSelectedSubmissionId(item.submission_id);
+                          setActiveTab('report');
+                        }}
+                      >
+                        Audit Report
+                      </button>
+                      <button
+                        type="button"
+                        className="role-btn"
+                        style={{ color: '#EF4444', borderColor: '#FCA5A5', background: '#FEF2F2', padding: '6px 10px', fontSize: '12px' }}
+                        title="Delete this submission"
+                        onClick={() => setSubmissionToDelete(item)}
+                      >
+                        <Trash2 size={14} /> Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Delete Hackathon Modal */}
+      {showDeleteHackModal && activeHackathon && (
+        <div className="modal-overlay" onClick={() => setShowDeleteHackModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+              <div style={{ background: '#FEE2E2', padding: '10px', borderRadius: '12px', color: '#EF4444' }}>
+                <Trash2 size={24} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#991B1B' }}>Judge: Delete Hackathon Event?</h3>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>This action is permanent and cannot be undone.</p>
+              </div>
+            </div>
+            <p style={{ fontSize: '14px', lineHeight: '1.6', color: '#374151', marginBottom: '20px' }}>
+              Are you sure you want to permanently delete <strong>{activeHackathon.title}</strong>? All registered submissions, AI evaluation reports, plagiarism fingerprints, and uploaded project assets will be removed.
+            </p>
+            {deleteHackathonAction.error && (
+              <p style={{ color: '#EF4444', fontSize: '13px', marginBottom: '16px' }}>{deleteHackathonAction.error}</p>
+            )}
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button type="button" className="role-btn" disabled={deleteHackathonAction.isLoading} onClick={() => setShowDeleteHackModal(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                style={{ background: '#DC2626', borderColor: '#DC2626', color: '#FFFFFF' }}
+                disabled={deleteHackathonAction.isLoading}
+                onClick={() => deleteHackathonAction.run()}
+              >
+                {deleteHackathonAction.isLoading ? 'Deleting…' : 'Yes, Delete Hackathon'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Submission Modal */}
+      {submissionToDelete && (
+        <div className="modal-overlay" onClick={() => setSubmissionToDelete(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+              <div style={{ background: '#FEE2E2', padding: '10px', borderRadius: '12px', color: '#EF4444' }}>
+                <Trash2 size={24} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#991B1B' }}>Delete Submission?</h3>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Permanent deletion of team submission and evaluation data.</p>
+              </div>
+            </div>
+            <p style={{ fontSize: '14px', lineHeight: '1.6', color: '#374151', marginBottom: '20px' }}>
+              Are you sure you want to delete the submission for team <strong>{submissionToDelete.team_name}</strong>? Its code files, reports, and fingerprints will be permanently deleted.
+            </p>
+            {deleteSubmissionAction.error && (
+              <p style={{ color: '#EF4444', fontSize: '13px', marginBottom: '16px' }}>{deleteSubmissionAction.error}</p>
+            )}
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button type="button" className="role-btn" disabled={deleteSubmissionAction.isLoading} onClick={() => setSubmissionToDelete(null)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                style={{ background: '#DC2626', borderColor: '#DC2626', color: '#FFFFFF' }}
+                disabled={deleteSubmissionAction.isLoading}
+                onClick={() => deleteSubmissionAction.run()}
+              >
+                {deleteSubmissionAction.isLoading ? 'Deleting…' : 'Yes, Delete Submission'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -388,9 +661,21 @@ interface ReportHeaderProps {
   selectedSubmissionId: string | null;
   setSelectedSubmissionId: (id: string) => void;
   compact?: boolean;
+  onTriggerDeleteHackathon?: () => void;
+  onTriggerDeleteSubmission?: () => void;
 }
 
-const ReportHeader: React.FC<ReportHeaderProps> = ({ hackathons, selectedHackathonId, setSelectedHackathonId, queue, selectedSubmissionId, setSelectedSubmissionId, compact }) => (
+const ReportHeader: React.FC<ReportHeaderProps> = ({
+  hackathons,
+  selectedHackathonId,
+  setSelectedHackathonId,
+  queue,
+  selectedSubmissionId,
+  setSelectedSubmissionId,
+  compact,
+  onTriggerDeleteHackathon,
+  onTriggerDeleteSubmission,
+}) => (
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: compact ? '12px' : '20px', flexWrap: 'wrap', gap: '12px' }}>
     {!compact && (
       <div>
@@ -398,15 +683,42 @@ const ReportHeader: React.FC<ReportHeaderProps> = ({ hackathons, selectedHackath
         <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Static code checks, sandbox logs, and video transcripts</p>
       </div>
     )}
-    <div style={{ display: 'flex', gap: '8px' }}>
-      <select className="hackathon-select" value={selectedHackathonId} onChange={(e) => setSelectedHackathonId(e.target.value)}>
-        {hackathons.length === 0 && <option value="">No hackathons</option>}
-        {hackathons.map((h) => <option key={h.id} value={h.id}>{h.title}</option>)}
-      </select>
-      <select className="hackathon-select" value={selectedSubmissionId || ''} onChange={(e) => setSelectedSubmissionId(e.target.value)}>
-        {queue.length === 0 && <option value="">No submissions</option>}
-        {queue.map((q) => <option key={q.submission_id} value={q.submission_id}>{q.team_name} (#{q.rank})</option>)}
-      </select>
+    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+        <select className="hackathon-select" value={selectedHackathonId} onChange={(e) => setSelectedHackathonId(e.target.value)}>
+          {hackathons.length === 0 && <option value="">No hackathons</option>}
+          {hackathons.map((h) => <option key={h.id} value={h.id}>{h.title}</option>)}
+        </select>
+        {onTriggerDeleteHackathon && selectedHackathonId && (
+          <button
+            type="button"
+            className="role-btn"
+            style={{ color: '#EF4444', borderColor: '#FCA5A5', background: '#FEF2F2', padding: '8px 10px' }}
+            title="Delete this hackathon event"
+            onClick={onTriggerDeleteHackathon}
+          >
+            <Trash2 size={15} />
+          </button>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+        <select className="hackathon-select" value={selectedSubmissionId || ''} onChange={(e) => setSelectedSubmissionId(e.target.value)}>
+          {queue.length === 0 && <option value="">No submissions</option>}
+          {queue.map((q) => <option key={q.submission_id} value={q.submission_id}>{q.team_name} (#{q.rank})</option>)}
+        </select>
+        {onTriggerDeleteSubmission && selectedSubmissionId && (
+          <button
+            type="button"
+            className="role-btn"
+            style={{ color: '#EF4444', borderColor: '#FCA5A5', background: '#FEF2F2', padding: '8px 10px' }}
+            title="Delete selected submission"
+            onClick={onTriggerDeleteSubmission}
+          >
+            <Trash2 size={15} />
+          </button>
+        )}
+      </div>
     </div>
   </div>
 );

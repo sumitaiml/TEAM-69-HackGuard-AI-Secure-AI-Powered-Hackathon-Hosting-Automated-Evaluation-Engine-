@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MetricCard } from './MetricCard';
-import { Users, ShieldAlert, Sliders, Trophy, Download, Send, Plus, Calendar, UserPlus, Upload } from 'lucide-react';
+import { Users, ShieldAlert, Sliders, Trophy, Download, Send, Plus, Calendar, UserPlus, Upload, Trash2 } from 'lucide-react';
 import type { HackathonItem, LeaderboardEntry, RubricWeights, JudgeInviteCsvResult } from '../lib/types';
 import { api } from '../lib/apiClient';
 import { useAsyncAction } from '../hooks/useAsyncAction';
@@ -12,6 +12,7 @@ interface OrganizerDashboardProps {
   selectedHackathonId: string;
   setSelectedHackathonId: (id: string) => void;
   onCreateHackathon: (title: string, description: string, startDate: string, endDate: string) => Promise<void>;
+  onDeleteHackathon?: (id: string) => Promise<void>;
 }
 
 const RUBRIC_KEYS = ['technical_complexity', 'innovation', 'ui_ux', 'business_impact', 'documentation', 'presentation'] as const;
@@ -31,8 +32,10 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
   selectedHackathonId,
   setSelectedHackathonId,
   onCreateHackathon,
+  onDeleteHackathon,
 }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
   const [newStartDate, setNewStartDate] = useState('');
@@ -64,6 +67,16 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
   const saveRubric = useAsyncAction(async () => {
     if (!weights || !activeHackathon) return;
     await api.put(`/api/hackathons/${activeHackathon.id}/rubric`, weights);
+  });
+
+  const deleteHackathonAction = useAsyncAction(async () => {
+    if (!activeHackathon) return;
+    if (onDeleteHackathon) {
+      await onDeleteHackathon(activeHackathon.id);
+    } else {
+      await api.delete(`/api/hackathons/${activeHackathon.id}`);
+    }
+    setShowDeleteModal(false);
   });
 
   const inviteJudge = useAsyncAction(async () => {
@@ -415,9 +428,22 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
           </div>
         </div>
 
-        <button className="btn-primary" onClick={() => setShowCreateModal(true)}>
-          <Plus size={18} /> Create New Hackathon
-        </button>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          {activeHackathon && (
+            <button
+              type="button"
+              className="role-btn"
+              style={{ color: '#EF4444', borderColor: '#FCA5A5', background: '#FEF2F2' }}
+              onClick={() => setShowDeleteModal(true)}
+              title="Delete this hackathon event"
+            >
+              <Trash2 size={16} /> Delete Hackathon
+            </button>
+          )}
+          <button className="btn-primary" onClick={() => setShowCreateModal(true)}>
+            <Plus size={18} /> Create New Hackathon
+          </button>
+        </div>
       </div>
 
       <div className="metrics-row">
@@ -619,6 +645,49 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
                 <button type="submit" className="btn-primary">Create Event</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {showDeleteModal && activeHackathon && (
+        <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+              <div style={{ background: '#FEE2E2', padding: '10px', borderRadius: '12px', color: '#EF4444' }}>
+                <Trash2 size={24} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#991B1B' }}>Delete Hackathon Event?</h3>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>This action is permanent and cannot be undone.</p>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '14px', lineHeight: '1.6', color: '#374151', marginBottom: '20px' }}>
+              Are you sure you want to permanently delete <strong>{activeHackathon.title}</strong>? All registered submissions, AI evaluation reports, code fingerprints, judge invites, and uploaded zip/demo files for this hackathon will be completely removed.
+            </p>
+
+            {deleteHackathonAction.error && (
+              <p style={{ color: '#EF4444', fontSize: '13px', marginBottom: '16px' }}>{deleteHackathonAction.error}</p>
+            )}
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="role-btn"
+                disabled={deleteHackathonAction.isLoading}
+                onClick={() => setShowDeleteModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                style={{ background: '#DC2626', borderColor: '#DC2626', color: '#FFFFFF' }}
+                disabled={deleteHackathonAction.isLoading}
+                onClick={() => deleteHackathonAction.run()}
+              >
+                {deleteHackathonAction.isLoading ? 'Deleting…' : 'Yes, Delete Permanently'}
+              </button>
+            </div>
           </div>
         </div>
       )}

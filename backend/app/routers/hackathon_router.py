@@ -15,6 +15,7 @@ from app.database import get_db
 from app.auth import require_role
 from app.services.audit_log import record_audit_event
 from app.services.email_service import send_judge_invite_email
+from app.services.deletion_service import delete_hackathon_cascade
 
 router = APIRouter(prefix="/api/hackathons", tags=["Hackathons"])
 
@@ -228,3 +229,20 @@ async def invite_judges_csv(
         "invited": invited,
         "skipped": skipped,
     }
+
+
+# ---- DELETE HACKATHON (organizer / judge / admin) ----
+@router.delete("/{hackathon_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_hackathon(
+    hackathon_id: str,
+    current_user: models.User = Depends(require_role(["organizer", "judge", "admin"])),
+    db: Session = Depends(get_db),
+):
+    """Permanently delete a hackathon and all associated data (submissions,
+    evaluation reports, plagiarism fingerprints, judge invites, and uploaded files)."""
+    hackathon = db.query(models.Hackathon).filter(models.Hackathon.id == hackathon_id).first()
+    if not hackathon:
+        raise HTTPException(status_code=404, detail="Hackathon not found")
+
+    delete_hackathon_cascade(db, hackathon, actor_user_id=current_user.id)
+    db.commit()

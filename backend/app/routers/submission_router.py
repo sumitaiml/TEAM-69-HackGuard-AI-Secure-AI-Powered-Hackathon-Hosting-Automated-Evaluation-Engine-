@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.database import get_db
 from app.auth import get_current_user
+from app.services.deletion_service import delete_submission_cascade
 from app.services.upload_validation import (
     ALLOWED_ZIP_EXTENSIONS,
     ALLOWED_PPT_EXTENSIONS,
@@ -151,3 +152,24 @@ def get_team_submissions(team_id: str, current_user: models.User = Depends(get_c
 
     subs = db.query(models.Submission).filter(models.Submission.team_id == team_id).all()
     return subs
+
+
+# ---- DELETE SUBMISSION (organizer / judge / admin) ----
+@router.delete("/{submission_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_submission(
+    submission_id: str,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Permanently delete a submission and all its associated data
+    (evaluation reports, plagiarism fingerprints, and uploaded files).
+    Only organizers, judges, and admins can delete submissions."""
+    if current_user.role not in ("organizer", "judge", "admin"):
+        raise HTTPException(status_code=403, detail="Only organizers and judges can delete submissions")
+
+    sub = db.query(models.Submission).filter(models.Submission.id == submission_id).first()
+    if not sub:
+        raise HTTPException(status_code=404, detail="Submission not found")
+
+    delete_submission_cascade(db, sub, actor_user_id=current_user.id)
+    db.commit()

@@ -56,6 +56,11 @@ function DashboardShell() {
     setSelectedHackathonId(created.id);
   };
 
+  const handleDeleteHackathon = async (id: string) => {
+    await api.delete(`/api/hackathons/${id}`);
+    refetchHackathons();
+  };
+
   if (!user) return null;
 
   const getHeaderTitle = () => {
@@ -119,6 +124,7 @@ function DashboardShell() {
               selectedHackathonId={selectedHackathonId}
               setSelectedHackathonId={setSelectedHackathonId}
               onCreateHackathon={handleCreateHackathon}
+              onDeleteHackathon={handleDeleteHackathon}
             />
           )}
           {user.role === 'judge' && (
@@ -128,6 +134,7 @@ function DashboardShell() {
               hackathons={hackathons}
               selectedHackathonId={selectedHackathonId}
               setSelectedHackathonId={setSelectedHackathonId}
+              onDeleteHackathon={handleDeleteHackathon}
             />
           )}
         </div>
